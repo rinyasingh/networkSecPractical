@@ -90,6 +90,12 @@ public class Alice {
                 //if (1): then are we encrypting it with our private key, sending it over and then Bob uses the public key to decrypt the aeskey to then decrypt the aes encrypted message? (That is the code I have for rsa at the moment)
                 //if (2): that makes line 70 : byte[] rsaEncryptedData = rsaCipher.doFinal(aesEncryptedData);
                 //Also most of this is using java packages instead of bouncy castle (even though I got it all from bouncy castle resources, I think they use the same provider) which I'll look into
+                //crypto 2 notes, slide 8 says "use public key crypto to establish secure connection, then
+                //establish second key – symmetric session key – for
+                //encrypting data" so I think that's what we need to do
+                //So I think this needs to be established beforehand in a handshake ??
+
+
 
                 // Send the message to Bob
                 dataOutputStream.writeUTF("Alice: " + message);
