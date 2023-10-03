@@ -26,6 +26,9 @@ public class Alice {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
+        //I think we need to add a few steps to connect the client's and exchange public keys
+        //Or to get them from the CA rather
+
         try (Socket socket = new Socket("localhost", 5001)) {
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
 
@@ -62,22 +65,29 @@ public class Alice {
 //                System.out.print("Alice: ");
                 String message = scanner.nextLine();
 
-                //Hash message
+                //1. Hash message
 
                 //Convert message to bytes
                 byte[] data = message.getBytes();
 
-                // Generate AES key for message encryption
+
+                //2. ENCRYPT HASHED MESSAGE WITH PRIVATE KEY
+
+
+
+
+                //3.  Generate AES key for message encryption (encrypt (2))
                 KeyGenerator keyGenerator = KeyGenerator.getInstance("AES",new BouncyCastleProvider());
                 keyGenerator.init(256); // Key size (adjust as needed)
                 SecretKey aesKey = keyGenerator.generateKey();
 
-                // Encrypt data with AES - https://www.bouncycastle.org/fips-java/BCFipsIn100.pdf
+                //4. Encrypt data with AES - https://www.bouncycastle.org/fips-java/BCFipsIn100.pdf
                 Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding",new BouncyCastleProvider());
                 aesCipher.init(Cipher.ENCRYPT_MODE, aesKey);
                 byte[] aesEncryptedData = aesCipher.doFinal(data);
 
-                // Encrypt AES key with RSA public key - https://www.bouncycastle.org/fips-java/BCFipsIn100.pdf
+                //5. Encrypt AES symmetric key with RECIPIENT'S RSA public key - https://www.bouncycastle.org/fips-java/BCFipsIn100.pdf
+                //This needs to be changed to use the recipient's public key
                 KeyPairGenerator keyPair = KeyPairGenerator.getInstance("RSA");
                 keyPair.initialize(new RSAKeyGenParameterSpec(3072, RSAKeyGenParameterSpec.F4));
                 KeyPair rsaKeyPair = keyPair.generateKeyPair();
