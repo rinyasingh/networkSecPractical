@@ -62,6 +62,8 @@ public class Alice {
 //                System.out.print("Alice: ");
                 String message = scanner.nextLine();
 
+                //Hash message
+
                 //Convert message to bytes
                 byte[] data = message.getBytes();
 
@@ -82,7 +84,7 @@ public class Alice {
 
                 Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding",new BouncyCastleProvider());
                 rsaCipher.init(Cipher.ENCRYPT_MODE, rsaKeyPair.getPrivate());
-                byte[] rsaEncryptedKey = rsaCipher.doFinal(aesKey.getbytes());
+                byte[] rsaEncryptedKey = rsaCipher.doFinal(aesKey.getEncoded());
 
                 //I am very confused so this is what I understand and what I did here
                 //"generate shared keys for symmetric encryption (e.g., DES, AES)" that's only one (aes) key used to directly encrypt the message, which is done (I think it will be the same one used to decrypt the message too)
