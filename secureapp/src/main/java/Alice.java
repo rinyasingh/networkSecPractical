@@ -1,10 +1,50 @@
 import java.io.*;
 import java.net.*;
+import java.security.*;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+
 public class Alice {
+    private static final String KEYSTORE_PWORD = "$up3r$3cur3";
+    private static KeyManagerFactory keyManagerFactory;
+    
+    public static void loadKeyStore(String keyStorePassword) {
+        try { 
+            KeyStore keyStore = KeyStore.getInstance("JKS");
+            keyStore.load(new FileInputStream("secureapp/config/alice-keystore.jks"), keyStorePassword.toCharArray());
+
+            keyManagerFactory = KeyManagerFactory.getInstance("SunX509");
+            keyManagerFactory.init(keyStore, keyStorePassword.toCharArray());
+
+        } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException | UnrecoverableKeyException e) {
+            System.err.println(e.getMessage());
+        }
+    }
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
+        loadKeyStore(KEYSTORE_PWORD);
+
+        try {
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
+
+            SSLSocketFactory socketFactory = sslContext.getSocketFactory();
+            SSLSocket bobSocket = (SSLSocket) socketFactory.createSocket("localhost", 5001);
+            
+            bobSocket.startHandshake();
+            Certificate bobCertificate = bobSocket.getSession().getPeerCertificates()[0];
+            System.out.println("bob: " + bobCertificate.toString());
+        } catch (KeyManagementException | NoSuchAlgorithmException | IOException e) {
+            System.err.println(e.getMessage());
+        }
 
         try (Socket socket = new Socket("localhost", 5001)) {
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
