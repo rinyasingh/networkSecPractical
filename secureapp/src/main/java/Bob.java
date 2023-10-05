@@ -1,21 +1,41 @@
+import keys.KeyUtils;
+
 import java.io.*;
 import java.net.*;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.Scanner;
 
 public class Bob {
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
 
-        try (Socket socket = new Socket("localhost", 5001)) {
+
+        PublicKey bobPub;
+        PrivateKey bobPriv;
+        PublicKey alicePub;
+        try{
+
+            bobPub = KeyUtils.readPublicKey("bob");
+            bobPriv = KeyUtils.readPrivateKey("bob");
+            alicePub = KeyUtils.readPublicKey("alice");
+        }
+        catch (Exception e){
+            System.out.println(e);
+        }
+
+        Scanner scanner = new Scanner(System.in);
+        int port = 5001;
+
+        try (Socket socket = new Socket("localhost", port)) {
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
 
-            // Create a separate thread to continuously read and display messages from Alice
+            //RECEIVE MESSAGES FROM ALICE
             Thread aliceListener = new Thread(() -> {
                 try {
                     DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
                     while (true) {
                         String receivedMessage = dataInputStream.readUTF();
-                        System.out.println(receivedMessage);
+                        System.out.println("Alice: " + receivedMessage);
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -23,12 +43,13 @@ public class Bob {
             });
             aliceListener.start();
 
+            //SEND MESSAGES TO ALICE
             while (true) {
-//                System.out.print("Bob: ");
                 String message = scanner.nextLine();
-
-                // Send the message to Alice
-                dataOutputStream.writeUTF("Bob: " + message);
+                // Check so it doesnt send empty messages
+                if (!message.isEmpty()) {
+                    dataOutputStream.writeUTF(message);
+                }
 
                 if (message.equalsIgnoreCase("exit")) {
                     break;
