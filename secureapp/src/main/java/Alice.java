@@ -6,10 +6,7 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Scanner;
 import keys.KeyUtils;
-import org.bouncycastle.openssl.PEMParser;
-import org.bouncycastle.openssl.PEMKeyPair;
-import org.bouncycastle.openssl.PEMException;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+
 import java.io.FileReader;
 import java.security.KeyPair;
 public class Alice {
