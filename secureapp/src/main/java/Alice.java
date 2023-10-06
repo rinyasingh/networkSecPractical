@@ -7,17 +7,6 @@ import java.security.spec.RSAKeyGenParameterSpec;
 import java.util.Scanner;
 import java.security.*;
 
-import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.BufferedBlockCipher;
-import org.bouncycastle.crypto.engines.AESEngine;
-import org.bouncycastle.crypto.modes.CFBBlockCipher;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.crypto.params.KeyParameter;
-import org.bouncycastle.crypto.params.ParametersWithIV;
-import org.bouncycastle.crypto.util.PrivateKeyFactory;
-import org.bouncycastle.crypto.util.PublicKeyFactory;
-import org.bouncycastle.crypto.util.PrivateKeyFactory;
-import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import javax.crypto.*;
@@ -42,7 +31,7 @@ public class Alice {
                         // Decrypt data with AES
                         Cipher cipher = Cipher.getInstance("AES/ECB/PKCS7Padding",new BouncyCastleProvider()); //https://stackoverflow.com/questions/15925029/aes-encrypt-decrypt-with-bouncy-castle-provider
                         cipher.init(Cipher.DECRYPT_MODE, key);
-                        byte[] decryptedData = cipher.doFinal(cipherText);
+//                        byte[] decryptedData = cipher.doFinal(receivedMessage);
 
 
                         System.out.println(receivedMessage);
@@ -95,18 +84,6 @@ public class Alice {
                 Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding",new BouncyCastleProvider());
                 rsaCipher.init(Cipher.ENCRYPT_MODE, rsaKeyPair.getPrivate());
                 byte[] rsaEncryptedKey = rsaCipher.doFinal(aesKey.getEncoded());
-
-                //I am very confused so this is what I understand and what I did here
-                //"generate shared keys for symmetric encryption (e.g., DES, AES)" that's only one (aes) key used to directly encrypt the message, which is done (I think it will be the same one used to decrypt the message too)
-                //"RSA for public-key encryption" - this is where I'm confused, are we encrypting (1) the aeskey or (2) the message (as like an extra layer of encryption)?
-                //if (1): then are we encrypting it with our private key, sending it over and then Bob uses the public key to decrypt the aeskey to then decrypt the aes encrypted message? (That is the code I have for rsa at the moment)
-                //if (2): that makes line 70 : byte[] rsaEncryptedData = rsaCipher.doFinal(aesEncryptedData);
-                //Also most of this is using java packages instead of bouncy castle (even though I got it all from bouncy castle resources, I think they use the same provider) which I'll look into
-                //crypto 2 notes, slide 8 says "use public key crypto to establish secure connection, then
-                //establish second key – symmetric session key – for
-                //encrypting data" so I think that's what we need to do
-                //So I think this needs to be established beforehand in a handshake ??
-
 
 
                 // Send the message to Bob
