@@ -15,7 +15,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 public class Bob {
-    private static final String KEYSTORE_PWORD = "m0r3$3cur3";
+    private static final String KEYSTORE_PWORD = "password";
     private static KeyManagerFactory keyManagerFactory;
 
     public static void loadKeyStore(String keyStorePassword) {

@@ -18,10 +18,10 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.swing.KeyStroke;
-
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 public class Server {
-    private static final String keystorePassword = "$3rv3r$3cur3";
-
+    private static final String keystorePassword = "password";
+   
     public static KeyStore loadKeyStore(String keystorePath, String keystorePassword) {
         KeyStore keyStore;
         try {
@@ -35,10 +35,10 @@ public class Server {
         }
     }
     public static void main(String[] args) {
-        // Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         int port = 5001; // Choose a port for the server
         boolean serverRunning = true;
-        KeyStore serverKeyStore = loadKeyStore("secureapp/config/server-keystore.jks", "$3rv3r$3cur3");
+        KeyStore serverKeyStore = loadKeyStore("config/server-keystore.jks", "$3rv3r$3cur3");
 
         try {
             KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("JKS");
@@ -66,32 +66,32 @@ public class Server {
             aliceSocket.close();
             bobSocket.close();
         } catch (NoSuchAlgorithmException | KeyStoreException | UnrecoverableKeyException | KeyManagementException | IOException e) {
-            e.printStackTrace();
+            System.err.println(e.getMessage());;
         }
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Server started, waiting for Alice and Bob...");
+        // try (ServerSocket serverSocket = new ServerSocket(port)) {
+        //     System.out.println("Server started, waiting for Alice and Bob...");
 
-            // Keep the server running until you manually terminate it
-            while (serverRunning) {
-                // Wait for Alice to connect
-                Socket aliceSocket = serverSocket.accept();
-                System.out.println("Alice connected");
+        //     // Keep the server running until you manually terminate it
+        //     while (serverRunning) {
+        //         // Wait for Alice to connect
+        //         Socket aliceSocket = serverSocket.accept();
+        //         System.out.println("Alice connected");
 
-                // Wait for Bob to connect
-                Socket bobSocket = serverSocket.accept();
-                System.out.println("Bob connected");
+        //         // Wait for Bob to connect
+        //         Socket bobSocket = serverSocket.accept();
+        //         System.out.println("Bob connected");
 
-                // Create threads to handle Alice and Bob's communication
-                Thread aliceThread = new Thread(new ClientHandler(aliceSocket, "Alice", bobSocket));
-                Thread bobThread = new Thread(new ClientHandler(bobSocket, "Bob", aliceSocket));
+        //         // Create threads to handle Alice and Bob's communication
+        //         Thread aliceThread = new Thread(new ClientHandler(aliceSocket, "Alice", bobSocket));
+        //         Thread bobThread = new Thread(new ClientHandler(bobSocket, "Bob", aliceSocket));
 
-                // Start the threads
-                aliceThread.start();
-                bobThread.start();
-            }
+        //         // Start the threads
+        //         aliceThread.start();
+        //         bobThread.start();
+        //     }
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // } catch (IOException e) {
+        //     e.printStackTrace();
+        // }
     }
 }

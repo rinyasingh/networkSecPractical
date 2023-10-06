@@ -13,7 +13,7 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 
 public class Alice {
-    private static final String KEYSTORE_PWORD = "$up3r$3cur3";
+    private static final String KEYSTORE_PWORD = "password";
     private static KeyManagerFactory keyManagerFactory;
     
     public static void loadKeyStore(String keyStorePassword) {
