@@ -60,7 +60,7 @@ public class KeyUtils {
         // Convert the public key object to a Java PublicKey object.
         JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
         PublicKey publicKey = converter.getPublicKey((SubjectPublicKeyInfo) publicKeyObject);
-        System.out.println(publicKey);
+//        System.out.println(publicKey);
 
         return publicKey;
     }
@@ -79,7 +79,7 @@ public class KeyUtils {
         JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
         PrivateKey privateKey = converter.getPrivateKey((PrivateKeyInfo) privateKeyObject);
 
-        System.out.println(privateKey);
+//        System.out.println(privateKey);
         return privateKey;
     }
 }
