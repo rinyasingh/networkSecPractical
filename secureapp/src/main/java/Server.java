@@ -38,9 +38,11 @@ public class Server {
         java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         int port = 5001; // Choose a port for the server
         boolean serverRunning = true;
-        KeyStore serverKeyStore = loadKeyStore("config/server-keystore.jks", "$3rv3r$3cur3");
-
         try {
+            InputStream keyInput = new FileInputStream("server-keystore.jks");
+            KeyStore serverKeyStore =  KeyStore.getInstance(KeyStore.getDefaultType());
+            serverKeyStore.load(keyInput, "$3rv3r$3cur3".toCharArray());
+        
             KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("JKS");
             keyManagerFactory.init(serverKeyStore, keystorePassword.toCharArray());
 
@@ -70,6 +72,10 @@ public class Server {
         }
         // try (ServerSocket serverSocket = new ServerSocket(port)) {
         //     System.out.println("Server started, waiting for Alice and Bob...");
+ catch (CertificateException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
 
         //     // Keep the server running until you manually terminate it
         //     while (serverRunning) {

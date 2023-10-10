@@ -50,9 +50,6 @@ public class Bob {
             System.err.println(e.getMessage());
         }
 
-
-
-
         try (Socket socket = new Socket("localhost", 5001)) {
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
 
