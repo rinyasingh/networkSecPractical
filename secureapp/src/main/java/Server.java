@@ -3,13 +3,16 @@ import java.net.*;
 import java.util.Arrays;
 
 import static java.lang.System.exit;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 
 public class Server {
     public static void main(String[] args) {
         int port = 5001;
         boolean serverRunning = true;
-
         try (ServerSocket serverSocket = new ServerSocket(port)) {
+            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            
             System.out.println("Server started, waiting for Alice and Bob...");
 
             // Keep the server running until you manually terminate it
@@ -74,7 +77,7 @@ public class Server {
                 bobThread.start();
             }
 
-        } catch (IOException e) {
+        } catch (IOException | KeyStoreException e) {
             e.printStackTrace();
         }
     }
