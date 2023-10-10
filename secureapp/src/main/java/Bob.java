@@ -34,7 +34,6 @@ public class Bob {
 
             //RECEIVE MESSAGES FROM ALICE
             PublicKey finalAlicePub = alicePub;
-            System.out.println(finalAlicePub);
             Thread aliceListener = new Thread(() -> {
                 try {
                     DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
@@ -45,9 +44,26 @@ public class Bob {
                         Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                         decryptCipher.init(Cipher.DECRYPT_MODE, finalAlicePub);
                         byte[] decryptedBytes = decryptCipher.doFinal(Base64.decode(receivedMessage));
-                        String decryptedMessage = new String(decryptedBytes, "UTF-8");
 
-                        System.out.println("Alice: " + decryptedMessage);
+                        int digestLength = 32; // For SHA-256
+                        int messageLength = decryptedBytes.length - digestLength;
+                        byte[] receivedM = new byte[messageLength];
+                        byte[] receivedDigest = new byte[digestLength];
+                        System.arraycopy(decryptedBytes, 0, receivedM, 0, messageLength);
+                        System.arraycopy(decryptedBytes, messageLength, receivedDigest, 0, digestLength);
+
+                        MessageDigest md = MessageDigest.getInstance("SHA-256");
+                        byte[] receivedMessageDigest = md.digest(receivedM);
+
+                        boolean isDigestValid = MessageDigest.isEqual(receivedDigest, receivedMessageDigest);
+
+                        if (isDigestValid) {
+                            String decryptedMessage = new String(receivedM, "UTF-8");
+
+                            System.out.println("Alice: "+ decryptedMessage);
+                        } else {
+                            System.out.println("Message Digest is NOT Valid");
+                        }
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -75,13 +91,17 @@ public class Bob {
                 // Static getInstance method is called with hashing SHA
                 MessageDigest md = MessageDigest.getInstance("SHA-256");
 
-                // digest() method called to calculate message digest of an input and return array of byte
-                byte[] digest = md.digest(message.getBytes(StandardCharsets.UTF_8));
-
                 //Convert message to bytes
-                byte[] data = message.getBytes();
+                byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
+
+                // digest() method called to calculate message digest of an input and return array of byte
+                byte[] digest = md.digest(messageBytes);
 
                 //join message and digest
+                byte[] data = new byte[messageBytes.length + digest.length];
+
+                System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+                System.arraycopy(digest, 0, data, messageBytes.length, digest.length);
 
                 //2. ENCRYPT HASHED MESSAGE WITH PRIVATE KEY
                 Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
