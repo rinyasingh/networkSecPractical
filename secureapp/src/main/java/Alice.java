@@ -5,6 +5,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -49,6 +50,8 @@ public class Alice {
 
         try (Socket socket = new Socket("localhost", port)) {
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
+            DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
+
             dataOutputStream.writeUTF("alice");
 
             //ALL KEYS
@@ -84,10 +87,54 @@ public class Alice {
             //RECEIVE MESSAGES FROM BOB
             Thread bobListener = new Thread(() -> {
                 try {
-                    DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
                     while (true) {
-                        String receivedMessage = dataInputStream.readUTF();
-                        System.out.println("Bob: "+ receivedMessage);
+//                        String receivedMessage = dataInputStream.readUTF();
+//                        System.out.println("Bob: "+ receivedMessage);
+
+                        int bytesToRead1 = 0;
+                        int bytesToRead2 = 0;
+
+                        String input =  dataInputStream.readUTF();
+                        System.out.println("UTF RECEIVED "+ input);
+                        int msgLengthWithoutPadding = dataInputStream.readInt();
+                        System.out.println("msg length: "+msgLengthWithoutPadding);
+                        int ivBytelength = dataInputStream.readInt();
+                        bytesToRead1 = ivBytelength;
+                        System.out.println("INT RECEIVED "+ ivBytelength);
+
+                        byte [] ivBytes = dataInputStream.readNBytes(bytesToRead1);
+                        System.out.println("BYTES RECEIVED "+ Arrays.toString(ivBytes));
+
+                        int encryptedMsgByteslength = dataInputStream.readInt();
+                        System.out.println("INT RECEIVED "+ encryptedMsgByteslength);
+
+                        bytesToRead2 = encryptedMsgByteslength;
+                        byte [] encryptedMsgBytes = dataInputStream.readNBytes(bytesToRead2);
+
+                        System.out.println("BYTES RECEIVED "+ Arrays.toString(encryptedMsgBytes));
+
+                        try {
+                            //decrypting message with session key
+                            KeyParameter keyParam = new KeyParameter(sessionKey);
+                            BufferedBlockCipher cipher = new BufferedBlockCipher(new CBCBlockCipher(new AESEngine()));
+                            CipherParameters params = new ParametersWithIV(keyParam, ivBytes);
+                            cipher.init(false, params); // Set to false for decryption
+                            byte[] decryptedMsgBytes = new byte[cipher.getOutputSize(encryptedMsgBytes.length)];
+
+                            int bytesWritten = cipher.processBytes(encryptedMsgBytes, 0, encryptedMsgByteslength, decryptedMsgBytes, 0);
+                            bytesWritten += cipher.doFinal(decryptedMsgBytes, bytesWritten);
+
+                            // Trim the decryptedMessageBytes to the actual size
+                            byte[] trimmedDecryptedMsgBytes = Arrays.copyOf(decryptedMsgBytes, msgLengthWithoutPadding);
+
+                            // Convert the decrypted message bytes to a string
+                            String decryptedMessage = new String(trimmedDecryptedMsgBytes, StandardCharsets.UTF_8);
+                            System.out.println("Decrypted message: " + decryptedMessage);
+
+                        }
+                        catch (InvalidCipherTextException e) {
+                            throw new RuntimeException(e);
+                        }
 
                     }
                 } catch (IOException e) {
@@ -129,7 +176,6 @@ public class Alice {
                         dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
                         dataOutputStream.writeInt(messageLength);
                         dataOutputStream.flush();
-
 
 
                         int paddedLength = ((messageLength + blockSize - 1) / blockSize) * blockSize; // Calculate the padded length
