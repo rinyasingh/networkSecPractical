@@ -37,7 +37,7 @@ import org.bouncycastle.crypto.util.PublicKeyFactory;
 
 import java.io.FileReader;
 
-public class Alice {
+public class Alice2 {
 
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         PublicKey alicePub;
@@ -49,7 +49,6 @@ public class Alice {
 
         try (Socket socket = new Socket("localhost", port)) {
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
-            dataOutputStream.writeUTF("alice");
 
             //ALL KEYS
             alicePub = KeyUtils.readPublicKey("alice");
@@ -65,21 +64,16 @@ public class Alice {
             SecureRandom secureRandom = new SecureRandom();
             byte[] sessionKey = new byte[16];
             secureRandom.nextBytes(sessionKey);
-            System.out.println("sessionkey: "+ Arrays.toString(sessionKey));
+            System.out.println("sessionkey: "+sessionKey);
 
             // Encrypt the session key with Bob's public key using RSA with PKCS1Padding
             byte[] encryptedSessionKey = rsaEngine.processBlock(sessionKey, 0, sessionKey.length);
 
             // Send the length of the encrypted session key followed by the key itself
-            System.out.println("SENDING encryptedsessionkey length:"+encryptedSessionKey.length);
-            dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
-            dataOutputStream.writeInt(encryptedSessionKey.length);
-            System.out.println("SENDING encryptedsessionkey:"+ Arrays.toString(encryptedSessionKey));
-            dataOutputStream.writeUTF(PayloadTypes.BYTES.getDataType());
-            dataOutputStream.write(encryptedSessionKey);
-            dataOutputStream.flush();
-
-//            System.out.println("encrypted sessionkey: " + encryptedSessionKey);
+//            dataOutputStream.writeInt(encryptedSessionKey.length);
+//            dataOutputStream.write(encryptedSessionKey);
+//            dataOutputStream.flush();
+            System.out.println("encrypted sessionkey: " + encryptedSessionKey);
 
             //RECEIVE MESSAGES FROM BOB
             Thread bobListener = new Thread(() -> {
@@ -103,8 +97,6 @@ public class Alice {
                 System.out.println(message);
 
                 dataOutputStream.writeUTF(PayloadTypes.UTF.getDataType());
-                dataOutputStream.flush();
-
                 dataOutputStream.writeUTF(message);
                 dataOutputStream.flush();
 
@@ -119,19 +111,11 @@ public class Alice {
                         KeyParameter keyParam = new KeyParameter(sessionKey);
                         byte[] messageBytes = message.getBytes("UTF-8");
                         BufferedBlockCipher cipher = new BufferedBlockCipher(new CBCBlockCipher(new AESEngine()));
-                        CipherParameters params = new ParametersWithIV(keyParam, ivBytes);
+                        CipherParameters params = new ParametersWithIV(new KeyParameter(sessionKey), ivBytes);
                         cipher.init(true, params);
 
                         int blockSize = cipher.getBlockSize();
                         int messageLength = messageBytes.length;
-
-
-                        dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
-                        dataOutputStream.writeInt(messageLength);
-                        dataOutputStream.flush();
-
-
-
                         int paddedLength = ((messageLength + blockSize - 1) / blockSize) * blockSize; // Calculate the padded length
 
                         byte[] paddedMessageBytes = new byte[paddedLength];
@@ -141,9 +125,11 @@ public class Alice {
                         int bytesWritten = cipher.processBytes(paddedMessageBytes, 0, paddedLength, encryptedMessageBytes, 0);
                         bytesWritten += cipher.doFinal(encryptedMessageBytes, bytesWritten);
 
-                        // Encode the entire encryptedMessageBytes
+// Encode the entire encryptedMessageBytes
                         String encryptedMessageString = Base64.getEncoder().encodeToString(encryptedMessageBytes);
-                        // Send the length of the IV followed by the IV itself
+//                        System.out.println("ENCR MSG: "+encryptedMessageString);
+
+// Send the length of the IV followed by the IV itself
                         System.out.println("SENDING ivBytes.length:");
                         System.out.println(ivBytes.length);
                         dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
@@ -152,24 +138,22 @@ public class Alice {
                         dataOutputStream.flush();
                         System.out.println("SENDING ivBytes:");
                         dataOutputStream.writeUTF(PayloadTypes.BYTES.getDataType());
-                        dataOutputStream.flush();
                         System.out.println(Arrays.toString(ivBytes));
                         dataOutputStream.write(ivBytes);
                         dataOutputStream.flush();
 
-                        // Send the length of the encrypted message followed by the encoded message itself
+// Send the length of the encrypted message followed by the encoded message itself
+//                        dataOutputStream.writeInt(encryptedMessageBytes.length);
+//                        dataOutputStream.writeUTF(encryptedMessageString);
+
                         System.out.println("SENDING encryptedMessageBytes.length:");
                         System.out.println(encryptedMessageBytes.length);
-                        dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
-                        dataOutputStream.flush();
                         dataOutputStream.writeInt(encryptedMessageBytes.length);
                         dataOutputStream.flush();
 
                         System.out.println("SENDING encryptedMessageBytes:");
-                        System.out.println(Arrays.toString(encryptedMessageBytes));
-                        dataOutputStream.writeUTF(PayloadTypes.BYTES.getDataType());
-                        dataOutputStream.flush();
-                        dataOutputStream.write(encryptedMessageBytes);
+                        System.out.println(encryptedMessageBytes.toString());
+                        dataOutputStream.writeUTF(encryptedMessageString);
                         dataOutputStream.flush();
 
                     }catch (InvalidCipherTextException e) {
