@@ -49,7 +49,7 @@ public class KeyUtils {
 
     public static PublicKey readPublicKey(String name) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
 
-        String publicKeyString = new String(Files.readAllBytes(Path.of("./src/main/java/keys/public/"+name+"_public_key"+".pem")));
+        String publicKeyString = new String(Files.readAllBytes(Path.of("C:/Users/Lwazi/Desktop/Networks/Assignment/networkSecPractical/secureapp/src/main/java/keys/public/"+name+"_public_key"+".pem")));
 
         // Create a PEMParser object.
         PEMParser pemParser = new PEMParser(new StringReader(publicKeyString));
@@ -67,7 +67,7 @@ public class KeyUtils {
 
     public static PrivateKey readPrivateKey(String name) throws IOException {
 
-        String privateKeyString = new String(Files.readAllBytes(Path.of("./src/main/java/keys/private/"+name+"_private_key"+".pem")));
+        String privateKeyString = new String(Files.readAllBytes(Path.of("C:/Users/Lwazi/Desktop/Networks/Assignment/networkSecPractical/secureapp/src/main/java/keys/private/"+name+"_private_key"+".pem")));
 
         // Create a PEMParser object.
         PEMParser pemParser = new PEMParser(new StringReader(privateKeyString));

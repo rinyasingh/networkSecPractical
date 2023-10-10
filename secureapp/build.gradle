@@ -14,6 +14,7 @@ dependencies {
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
 //    implementation 'org.bouncycastle:bcprov-jdk15on:1.68'
     implementation 'org.bouncycastle:bcpkix-jdk15on:1.50'
+//    implementation 'org.bouncycastle:bcprov-jdk18on:1.76'
 }
 
 test {
