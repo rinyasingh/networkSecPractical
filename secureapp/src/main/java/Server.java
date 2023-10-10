@@ -1,11 +1,15 @@
 import java.io.*;
 import java.net.*;
+import java.security.cert.X509Certificate;
 
+import org.bouncycastle.jce.provider.X509CertPairParser;
+
+import keys.KeyUtils;
 public class Server {
     public static void main(String[] args) {
         int port = 5001;
         boolean serverRunning = true;
-
+        // X509Certificate caCert = KeyUtils.readX509Certificate();
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started, waiting for Alice and Bob...");
 

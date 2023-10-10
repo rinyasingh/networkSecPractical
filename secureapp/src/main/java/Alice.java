@@ -89,7 +89,7 @@ public class Alice {
             //SEND MESSAGES TO BOB
             while (true) {
                 // Load the image from a file into a byte array
-                File imageFile = new File("C:/Users/Lwazi/Downloads/server.png");
+                File imageFile = new File("secureapp/twitter-logo.png");
                 byte[] imageBytes = Files.readAllBytes(imageFile.toPath());
 
                 // Calculate the SHA-256 hash of the image data

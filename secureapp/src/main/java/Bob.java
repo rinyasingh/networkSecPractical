@@ -75,7 +75,7 @@ public class Bob {
                             String receivedTextMessage = new String(receivedTextBytes, StandardCharsets.UTF_8);
 
 
-                            File outputFile = new File("C:/Users/Lwazi/Desktop/test", "test.jpg");
+                            File outputFile = new File("secureapp", "test.jpg");
 
                             // Write the BufferedImage to the file
                             ImageIO.write(receivedImage, "jpg", outputFile);
