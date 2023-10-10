@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Scanner;
@@ -87,39 +88,39 @@ public class Alice {
 
             //SEND MESSAGES TO BOB
             while (true) {
-                String message = scanner.nextLine();
-                //Checks so it doesnt send empty messages
+                // Load the image from a file into a byte array
+                File imageFile = new File("C:/Users/Lwazi/Downloads/server.png");
+                byte[] imageBytes = Files.readAllBytes(imageFile.toPath());
 
-                //1. Hash message - https://www.geeksforgeeks.org/sha-256-hash-in-java/
-
-                // Static getInstance method is called with hashing SHA
+                // Calculate the SHA-256 hash of the image data
                 MessageDigest md = MessageDigest.getInstance("SHA-256");
+                byte[] imageDigest = md.digest(imageBytes);
 
-                //Convert message to bytes
-                byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
-                // digest() method called to calculate message digest of an input and return array of byte
-                byte[] digest = md.digest(messageBytes);
+                String textMessage = scanner.nextLine();
 
-                byte[] data = new byte[messageBytes.length + digest.length];
+                //Combine image and text
+                byte[] delimiter = "#DELIMITER#".getBytes(StandardCharsets.UTF_8);
+                byte[] combinedData = new byte[imageBytes.length + delimiter.length + textMessage.getBytes().length];
+                System.arraycopy(imageBytes, 0, combinedData, 0, imageBytes.length);
+                System.arraycopy(delimiter, 0, combinedData, imageBytes.length, delimiter.length);
+                System.arraycopy(textMessage.getBytes(), 0, combinedData, imageBytes.length, textMessage.getBytes().length);
 
-                System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
-                System.arraycopy(digest, 0, data, messageBytes.length, digest.length);
+                byte[] combinedDataDigest = md.digest(combinedData);
 
-                //join message and digest
-//                byte[] data = messageBytes+digest;
+                byte[] data = new byte[combinedData.length + combinedDataDigest.length];
+                System.arraycopy(combinedData, 0, data, 0, combinedData.length);
+                System.arraycopy(combinedDataDigest, 0, data, combinedData.length, combinedDataDigest.length);
 
                 //2. ENCRYPT HASHED MESSAGE WITH PRIVATE KEY
                 Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                 cipher.init(Cipher.ENCRYPT_MODE, alicePriv);
                 byte[] privEncryptedMessage = cipher.doFinal(data);//encrypts
 
-                //
-
-                if (!message.isEmpty()) {
+                if (!textMessage.isEmpty()) {
                     dataOutputStream.writeUTF(Base64.toBase64String(privEncryptedMessage));
                     System.out.println("sent:"+privEncryptedMessage.toString());
                 }
-                if (message.equalsIgnoreCase("exit")) {
+                if (textMessage.equalsIgnoreCase("exit")) {
                     break;
                 }
             }
