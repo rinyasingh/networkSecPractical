@@ -10,6 +10,8 @@ import org.bouncycastle.crypto.params.ParametersWithIV;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.util.PrivateKeyFactory;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -40,14 +42,11 @@ public class Bob {
             bobPriv = KeyUtils.readPrivateKey("bob");
 //            alicePub = KeyUtils.readPublicKey("alice");
 
-            int readbytes = 0;
+//          // Read the base64-encoded session key as a string
+            String base64EncryptedSessionKey = dataInputStream.readUTF();
 
-            int keyLength = dataInputStream.readInt();
-            System.out.println("INT RECEIVED "+ keyLength);
-            readbytes = keyLength;
-
-            byte [] sessionKey = dataInputStream.readNBytes(readbytes);
-            System.out.println("BYTES RECEIVED "+ Arrays.toString(sessionKey));
+            // Decode the Base64 string back into a byte array
+            byte[] encryptedSessionKey = Base64.getDecoder().decode(base64EncryptedSessionKey);
 
             // Initialize the RSA engine with Bob's private key
             RSAKeyParameters rsaPrivateKey = (RSAKeyParameters) PrivateKeyFactory.createKey(bobPriv.getEncoded());
@@ -55,7 +54,7 @@ public class Bob {
             rsaEngine.init(false, rsaPrivateKey);
 
             // Decrypt the encrypted session key
-            byte[] decryptedSessionKey = rsaEngine.processBlock(sessionKey, 0, keyLength);
+            byte[] decryptedSessionKey = rsaEngine.processBlock(encryptedSessionKey, 0, encryptedSessionKey.length);
             System.out.println("DECRYPTED key "+ Arrays.toString(decryptedSessionKey));
 
             //RECEIVE MESSAGES FROM ALICE
@@ -63,53 +62,28 @@ public class Bob {
                 try {
                     while (true) {
 
-                        int bytesToRead1 = 0;
-                        int bytesToRead2 = 0;
+                         String base64EncryptedMessage = dataInputStream.readUTF();
 
-                        String input =  dataInputStream.readUTF();
-                        System.out.println("UTF RECEIVED "+ input);
-                        int msgLengthWithoutPadding = dataInputStream.readInt();
-                        System.out.println("msg length: "+msgLengthWithoutPadding);
-                        int ivBytelength = dataInputStream.readInt();
-                        bytesToRead1 = ivBytelength;
-                        System.out.println("INT RECEIVED "+ ivBytelength);
-
-                        byte [] ivBytes = dataInputStream.readNBytes(bytesToRead1);
-                        System.out.println("BYTES RECEIVED "+ Arrays.toString(ivBytes));
-
-                        int encryptedMsgByteslength = dataInputStream.readInt();
-                        System.out.println("INT RECEIVED "+ encryptedMsgByteslength);
-
-                        bytesToRead2 = encryptedMsgByteslength;
-                        byte [] encryptedMsgBytes = dataInputStream.readNBytes(bytesToRead2);
-
-                        System.out.println("BYTES RECEIVED "+ Arrays.toString(encryptedMsgBytes));
+                        // Decode the Base64 string back into a byte array
+                        byte[] encryptedMessage = Base64.getDecoder().decode(base64EncryptedMessage);
 
                         try {
-                            //decrypting message with session key
-                            KeyParameter keyParam = new KeyParameter(decryptedSessionKey);
-                            BufferedBlockCipher cipher = new BufferedBlockCipher(new CBCBlockCipher(new AESEngine()));
-                            CipherParameters params = new ParametersWithIV(keyParam, ivBytes);
-                            cipher.init(false, params); // Set to false for decryption
-                            byte[] decryptedMsgBytes = new byte[cipher.getOutputSize(encryptedMsgBytes.length)];
+                            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
+                            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(decryptedSessionKey, "AES"));
 
-                            int bytesWritten = cipher.processBytes(encryptedMsgBytes, 0, encryptedMsgByteslength, decryptedMsgBytes, 0);
-                            bytesWritten += cipher.doFinal(decryptedMsgBytes, bytesWritten);
+                            byte[] decryptedMessage = cipher.doFinal(encryptedMessage);
 
-                            // Trim the decryptedMessageBytes to the actual size
-                            byte[] trimmedDecryptedMsgBytes = Arrays.copyOf(decryptedMsgBytes, msgLengthWithoutPadding);
-
-                            // Convert the decrypted message bytes to a string
-                            String decryptedMessage = new String(trimmedDecryptedMsgBytes, StandardCharsets.UTF_8);
-                            System.out.println("Decrypted message: " + decryptedMessage);
+                            // Process the decrypted message as needed
+                            String decryptedMessageString = new String(decryptedMessage, "UTF-8");
+                            System.out.println("Decrypted message: " + decryptedMessageString);
 
                         }
-                        catch (InvalidCipherTextException e) {
+                        catch (Exception e) {
                             throw new RuntimeException(e);
                         }
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             });
             aliceListener.start();
@@ -120,89 +94,29 @@ public class Bob {
                 System.out.println("SENDING PLAIN MESSAGE:");
                 System.out.println(message);
 
-                dataOutputStream.writeUTF(PayloadTypes.UTF.getDataType());
-                dataOutputStream.flush();
-
-                dataOutputStream.writeUTF(message);
-                dataOutputStream.flush();
-
                 // Check so it doesn't send empty messages
                 if (!message.isEmpty()) {
-//                    dataOutputStream.writeUTF(message);
-
                     try {
-                        // Generate a random IV (Initialization Vector)
-                        SecureRandom secureRandom = new SecureRandom();
-                        byte[] ivBytes = new byte[16]; // 16 bytes for AES
-                        secureRandom.nextBytes(ivBytes);
 
-                        // setup cipher parameters with key and IV
-                        KeyParameter keyParam = new KeyParameter(decryptedSessionKey);
-                        byte[] messageBytes = message.getBytes("UTF-8");
-                        BufferedBlockCipher cipher = new BufferedBlockCipher(new CBCBlockCipher(new AESEngine()));
-                        CipherParameters params = new ParametersWithIV(keyParam, ivBytes);
-                        cipher.init(true, params);
-
-                        int blockSize = cipher.getBlockSize();
-                        int messageLength = messageBytes.length;
-
-
-                        dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
-                        dataOutputStream.writeInt(messageLength);
-                        dataOutputStream.flush();
-
-
-                        int paddedLength = ((messageLength + blockSize - 1) / blockSize) * blockSize; // Calculate the padded length
-
-                        byte[] paddedMessageBytes = new byte[paddedLength];
-                        System.arraycopy(messageBytes, 0, paddedMessageBytes, 0, messageLength);
-
-                        byte[] encryptedMessageBytes = new byte[cipher.getOutputSize(paddedLength)];
-                        int bytesWritten = cipher.processBytes(paddedMessageBytes, 0, paddedLength, encryptedMessageBytes, 0);
-                        bytesWritten += cipher.doFinal(encryptedMessageBytes, bytesWritten);
+                        byte[] messageBytes = message.getBytes();
+                        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
+                        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(decryptedSessionKey, "AES"));
+                        byte[] encryptedMessage = cipher.doFinal(messageBytes);
 
                         // Encode the entire encryptedMessageBytes
-                        String encryptedMessageString = Base64.getEncoder().encodeToString(encryptedMessageBytes);
-                        // Send the length of the IV followed by the IV itself
-                        System.out.println("SENDING ivBytes.length:");
-                        System.out.println(ivBytes.length);
-                        dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
-                        dataOutputStream.flush();
-                        dataOutputStream.writeInt(ivBytes.length);
-                        dataOutputStream.flush();
-                        System.out.println("SENDING ivBytes:");
-                        dataOutputStream.writeUTF(PayloadTypes.BYTES.getDataType());
-                        dataOutputStream.flush();
-                        System.out.println(Arrays.toString(ivBytes));
-                        dataOutputStream.write(ivBytes);
-                        dataOutputStream.flush();
+                        String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
+                        dataOutputStream.writeUTF(Base64EncryptedMessage);
 
-                        // Send the length of the encrypted message followed by the encoded message itself
-                        System.out.println("SENDING encryptedMessageBytes.length:");
-                        System.out.println(encryptedMessageBytes.length);
-                        dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
-                        dataOutputStream.flush();
-                        dataOutputStream.writeInt(encryptedMessageBytes.length);
-                        dataOutputStream.flush();
 
-                        System.out.println("SENDING encryptedMessageBytes:");
-                        System.out.println(Arrays.toString(encryptedMessageBytes));
-                        dataOutputStream.writeUTF(PayloadTypes.BYTES.getDataType());
-                        dataOutputStream.flush();
-                        dataOutputStream.write(encryptedMessageBytes);
-                        dataOutputStream.flush();
-
-                    }catch (InvalidCipherTextException e) {
-                        System.err.println("Encryption failed: " + e.getMessage());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
                     }
 
+                    if (message.equalsIgnoreCase("exit")) {
+                        break;
+                    }
                 }
-
-                if (message.equalsIgnoreCase("exit")) {
-                    break;
                 }
-            }
-
             socket.close();
         } catch (IOException e) {
             e.printStackTrace();

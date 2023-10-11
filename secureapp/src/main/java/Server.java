@@ -85,54 +85,13 @@ public class Server {
     private static void forwardMessages(Socket sourceSocket, Socket destinationSocket, DataInputStream sourceIn ) {
         try {
             DataOutputStream destinationOut = new DataOutputStream(destinationSocket.getOutputStream());
-//            DataInputStream sourceIn = new DataInputStream(sourceSocket.getInputStream());
-            int bytesToRead = 0;
+
             while (true) {
-                String input =sourceIn.readUTF();
-//                System.out.println("INPUT TYPE: "+input);
-                PayloadTypes type =  PayloadTypes.fromString(input);
-                System.out.println("INPUT TYPE: "+input+ " " + "Created TYPE: "+type);
-                switch (type) {
-                    case UTF :
-                        String stringMessage = sourceIn.readUTF();
-                        System.out.println("STRING MESSAGE: "+stringMessage);
-                        destinationOut.writeUTF(stringMessage);
-                        destinationOut.flush();
+                // Receive a message from the source socket
+                String message = sourceIn.readUTF();
 
-                        if (stringMessage.equalsIgnoreCase("exit")) {
-                            exit(0);
-                            sourceSocket.close();
-                            destinationSocket.close();
-                        }
-                        break;
-                    case INT:
-                        int intMessage = sourceIn.readInt();
-                        System.out.println("INT MESSAGE: "+ intMessage);
-                        bytesToRead = intMessage;
-                        destinationOut.writeInt(intMessage);
-                        destinationOut.flush();
-
-                        break;
-                    case BYTES:
-                        byte[] bytesMessage = sourceIn.readNBytes(bytesToRead);
-                        System.out.println("BYTES MESSAGE ["+bytesToRead+"bytes]: "+ Arrays.toString(bytesMessage));
-                        destinationOut.write(bytesMessage);
-                        destinationOut.flush();
-                        break;
-
-                }
-
-//                System.out.println("SERVER RECEIVED MESSAGE:");
-//                // Receive a message from the source socket
-//                String message = sourceIn.readUTF();
-//                int msg = sourceIn.readInt();
-//
-//                System.out.println(message);
-//                System.out.println(msg);
-//
-//                // Forward the message to the destination socket
-//                destinationOut.writeUTF(message);
-//                destinationOut.writeInt(msg);
+                 // Forward the message to the destination socket
+                destinationOut.writeUTF(message);
 
             }
 
