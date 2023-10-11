@@ -9,6 +9,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.*;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 
 public class KeyUtils {
@@ -81,5 +82,9 @@ public class KeyUtils {
 
 //        System.out.println(privateKey);
         return privateKey;
+    }
+
+    public static X509Certificate readX509Certificate(String string) {
+        return null;
     }
 }
