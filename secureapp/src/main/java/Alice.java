@@ -44,22 +44,26 @@ public class Alice {
                     while (true) {
                         String receivedMessage = dataInputStream.readUTF();
 
-                        // Decrypt with the recipient's public key
-                        Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-                        decryptCipher.init(Cipher.DECRYPT_MODE, finalBobPub);
-                        byte[] decryptedBytes = decryptCipher.doFinal(Base64.decode(receivedMessage));
+                        byte[] decodedMessage = Base64.decode(receivedMessage);
 
-                        int digestLength = 32; // For SHA-256
-                        int messageLength = decryptedBytes.length - digestLength;
+                        int digestLength = 256; // For SHA-256
+                        int messageLength = decodedMessage.length - digestLength;
                         byte[] receivedM = new byte[messageLength];
                         byte[] receivedDigest = new byte[digestLength];
-                        System.arraycopy(decryptedBytes, 0, receivedM, 0, messageLength);
-                        System.arraycopy(decryptedBytes, messageLength, receivedDigest, 0, digestLength);
+                        System.arraycopy(decodedMessage, 0, receivedM, 0, messageLength);
+
+                        System.arraycopy(decodedMessage, messageLength, receivedDigest, 0, digestLength);
+
+                        // Decrypt digest with the recipient's public key
+                        Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+                        decryptCipher.init(Cipher.DECRYPT_MODE, finalBobPub);
+                        byte[] decryptedDigest = decryptCipher.doFinal(receivedDigest);
+
 
                         MessageDigest md = MessageDigest.getInstance("SHA-256");
                         byte[] receivedMessageDigest = md.digest(receivedM);
 
-                        boolean isDigestValid = MessageDigest.isEqual(receivedDigest, receivedMessageDigest);
+                        boolean isDigestValid = MessageDigest.isEqual(receivedMessageDigest, decryptedDigest);
 
                         if (isDigestValid) {
                             String decryptedMessage = new String(receivedM, "UTF-8");
@@ -67,8 +71,7 @@ public class Alice {
                             System.out.println("Bob: "+ decryptedMessage);
                         } else {
                             System.out.println("Message Digest is NOT Valid");
-                        }
-                    }
+                        }                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (NoSuchPaddingException e) {
@@ -100,24 +103,17 @@ public class Alice {
                 // digest() method called to calculate message digest of an input and return array of byte
                 byte[] digest = md.digest(messageBytes);
 
-                byte[] data = new byte[messageBytes.length + digest.length];
-
-                System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
-                System.arraycopy(digest, 0, data, messageBytes.length, digest.length);
-
-                //join message and digest
-//                byte[] data = messageBytes+digest;
-
-                //2. ENCRYPT HASHED MESSAGE WITH PRIVATE KEY
+                //2. ENCRYPT DIGEST WITH PRIVATE KEY
                 Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                 cipher.init(Cipher.ENCRYPT_MODE, alicePriv);
-                byte[] privEncryptedMessage = cipher.doFinal(data);//encrypts
+                byte[] privEncryptedDigest = cipher.doFinal(digest);//encrypts
+                byte[] data = new byte[messageBytes.length + privEncryptedDigest.length];
 
-                //
+                System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+                System.arraycopy(privEncryptedDigest, 0, data, messageBytes.length, privEncryptedDigest.length);
 
                 if (!message.isEmpty()) {
-                    dataOutputStream.writeUTF(Base64.toBase64String(privEncryptedMessage));
-                    System.out.println("sent:"+privEncryptedMessage.toString());
+                    dataOutputStream.writeUTF(Base64.toBase64String(data));
                 }
                 if (message.equalsIgnoreCase("exit")) {
                     break;
