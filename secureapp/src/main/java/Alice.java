@@ -1,11 +1,5 @@
-import keys.KeyUtils;
-import org.bouncycastle.crypto.InvalidCipherTextException;
-
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.Socket;
-import java.nio.charset.StandardCharsets;
+import java.io.*;
+import java.net.*;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -21,29 +15,28 @@ import java.util.Base64;
 import java.util.Scanner;
 import keys.KeyUtils;
 
-import org.bouncycastle.crypto.BufferedBlockCipher;
-import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.bouncycastle.crypto.engines.AESEngine;
-import org.bouncycastle.crypto.engines.RSAEngine;
-import org.bouncycastle.crypto.modes.CBCBlockCipher;
-import org.bouncycastle.crypto.paddings.BlockCipherPadding;
-import org.bouncycastle.crypto.paddings.PKCS7Padding;
-import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
-import org.bouncycastle.crypto.params.KeyParameter;
-import org.bouncycastle.crypto.params.ParametersWithIV;
-import org.bouncycastle.crypto.params.RSAKeyParameters;
-import org.bouncycastle.crypto.util.PublicKeyFactory;
-//import org.bouncycastle.crypto.paddings.PKCS5Padding;
-
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.io.FileReader;
-
+import java.security.KeyPair;
 public class Alice {
 
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         PublicKey alicePub;
         PrivateKey alicePriv;
         PublicKey bobPub;
+        try{
+
+             alicePub = KeyUtils.readPublicKey("alice");
+             alicePriv = KeyUtils.readPrivateKey("alice");
+             bobPub = KeyUtils.readPublicKey("bob");
+        }
+        catch (Exception e){
+            System.out.println(e);
+        }
+
 
         Scanner scanner = new Scanner(System.in);
         int port = 5001;
@@ -85,60 +78,25 @@ public class Alice {
 //            System.out.println("encrypted sessionkey: " + encryptedSessionKey);
 
             //RECEIVE MESSAGES FROM BOB
+            PublicKey finalBobPub = bobPub;
             Thread bobListener = new Thread(() -> {
                 try {
                     while (true) {
-//                        String receivedMessage = dataInputStream.readUTF();
-//                        System.out.println("Bob: "+ receivedMessage);
-
-                        int bytesToRead1 = 0;
-                        int bytesToRead2 = 0;
-
-                        String input =  dataInputStream.readUTF();
-                        System.out.println("UTF RECEIVED "+ input);
-                        int msgLengthWithoutPadding = dataInputStream.readInt();
-                        System.out.println("msg length: "+msgLengthWithoutPadding);
-                        int ivBytelength = dataInputStream.readInt();
-                        bytesToRead1 = ivBytelength;
-                        System.out.println("INT RECEIVED "+ ivBytelength);
-
-                        byte [] ivBytes = dataInputStream.readNBytes(bytesToRead1);
-                        System.out.println("BYTES RECEIVED "+ Arrays.toString(ivBytes));
-
-                        int encryptedMsgByteslength = dataInputStream.readInt();
-                        System.out.println("INT RECEIVED "+ encryptedMsgByteslength);
-
-                        bytesToRead2 = encryptedMsgByteslength;
-                        byte [] encryptedMsgBytes = dataInputStream.readNBytes(bytesToRead2);
-
-                        System.out.println("BYTES RECEIVED "+ Arrays.toString(encryptedMsgBytes));
-
-                        try {
-                            //decrypting message with session key
-                            KeyParameter keyParam = new KeyParameter(sessionKey);
-                            BufferedBlockCipher cipher = new BufferedBlockCipher(new CBCBlockCipher(new AESEngine()));
-                            CipherParameters params = new ParametersWithIV(keyParam, ivBytes);
-                            cipher.init(false, params); // Set to false for decryption
-                            byte[] decryptedMsgBytes = new byte[cipher.getOutputSize(encryptedMsgBytes.length)];
-
-                            int bytesWritten = cipher.processBytes(encryptedMsgBytes, 0, encryptedMsgByteslength, decryptedMsgBytes, 0);
-                            bytesWritten += cipher.doFinal(decryptedMsgBytes, bytesWritten);
-
-                            // Trim the decryptedMessageBytes to the actual size
-                            byte[] trimmedDecryptedMsgBytes = Arrays.copyOf(decryptedMsgBytes, msgLengthWithoutPadding);
-
-                            // Convert the decrypted message bytes to a string
-                            String decryptedMessage = new String(trimmedDecryptedMsgBytes, StandardCharsets.UTF_8);
-                            System.out.println("Decrypted message: " + decryptedMessage);
-
-                        }
-                        catch (InvalidCipherTextException e) {
-                            throw new RuntimeException(e);
-                        }
-
+                        String receivedMessage = dataInputStream.readUTF();
+                        System.out.println("Bob: "+ receivedMessage);
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
+                } catch (NoSuchPaddingException e) {
+                    throw new RuntimeException(e);
+                } catch (IllegalBlockSizeException e) {
+                    throw new RuntimeException(e);
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
+                } catch (BadPaddingException e) {
+                    throw new RuntimeException(e);
+                } catch (InvalidKeyException e) {
+                    throw new RuntimeException(e);
                 }
             });
             bobListener.start();
@@ -146,84 +104,11 @@ public class Alice {
             //SEND MESSAGES TO BOB
             while (true) {
                 String message = scanner.nextLine();
-                System.out.println("SENDING PLAIN MESSAGE:");
-                System.out.println(message);
-
-                dataOutputStream.writeUTF(PayloadTypes.UTF.getDataType());
-                dataOutputStream.flush();
-
-                dataOutputStream.writeUTF(message);
-                dataOutputStream.flush();
-
-                //Checks so it doesn't send empty messages
+                //Checks so it doesnt send empty messages
                 if (!message.isEmpty()) {
-                    try {
-                        // Generate a random IV (Initialization Vector)
-                        byte[] ivBytes = new byte[16]; // 16 bytes for AES
-                        secureRandom.nextBytes(ivBytes);
-
-                        // setup cipher parameters with key and IV
-                        KeyParameter keyParam = new KeyParameter(sessionKey);
-                        byte[] messageBytes = message.getBytes("UTF-8");
-                        BufferedBlockCipher cipher = new BufferedBlockCipher(new CBCBlockCipher(new AESEngine()));
-                        CipherParameters params = new ParametersWithIV(keyParam, ivBytes);
-                        cipher.init(true, params);
-
-                        int blockSize = cipher.getBlockSize();
-                        int messageLength = messageBytes.length;
-
-
-                        dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
-                        dataOutputStream.writeInt(messageLength);
-                        dataOutputStream.flush();
-
-
-                        int paddedLength = ((messageLength + blockSize - 1) / blockSize) * blockSize; // Calculate the padded length
-
-                        byte[] paddedMessageBytes = new byte[paddedLength];
-                        System.arraycopy(messageBytes, 0, paddedMessageBytes, 0, messageLength);
-
-                        byte[] encryptedMessageBytes = new byte[cipher.getOutputSize(paddedLength)];
-                        int bytesWritten = cipher.processBytes(paddedMessageBytes, 0, paddedLength, encryptedMessageBytes, 0);
-                        bytesWritten += cipher.doFinal(encryptedMessageBytes, bytesWritten);
-
-                        // Encode the entire encryptedMessageBytes
-                        String encryptedMessageString = Base64.getEncoder().encodeToString(encryptedMessageBytes);
-                        // Send the length of the IV followed by the IV itself
-                        System.out.println("SENDING ivBytes.length:");
-                        System.out.println(ivBytes.length);
-                        dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
-                        dataOutputStream.flush();
-                        dataOutputStream.writeInt(ivBytes.length);
-                        dataOutputStream.flush();
-                        System.out.println("SENDING ivBytes:");
-                        dataOutputStream.writeUTF(PayloadTypes.BYTES.getDataType());
-                        dataOutputStream.flush();
-                        System.out.println(Arrays.toString(ivBytes));
-                        dataOutputStream.write(ivBytes);
-                        dataOutputStream.flush();
-
-                        // Send the length of the encrypted message followed by the encoded message itself
-                        System.out.println("SENDING encryptedMessageBytes.length:");
-                        System.out.println(encryptedMessageBytes.length);
-                        dataOutputStream.writeUTF(PayloadTypes.INT.getDataType());
-                        dataOutputStream.flush();
-                        dataOutputStream.writeInt(encryptedMessageBytes.length);
-                        dataOutputStream.flush();
-
-                        System.out.println("SENDING encryptedMessageBytes:");
-                        System.out.println(Arrays.toString(encryptedMessageBytes));
-                        dataOutputStream.writeUTF(PayloadTypes.BYTES.getDataType());
-                        dataOutputStream.flush();
-                        dataOutputStream.write(encryptedMessageBytes);
-                        dataOutputStream.flush();
-
-                    }catch (InvalidCipherTextException e) {
-                        System.err.println("Encryption failed: " + e.getMessage());
-                    }
-
+                    dataOutputStream.writeUTF(message);
                 }
-                if (message.equalsIgnoreCase("exit")) {
+                if (textMessage.equalsIgnoreCase("exit")) {
                     break;
                 }
             }
@@ -231,8 +116,6 @@ public class Alice {
             socket.close();
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println(e);
-            System.out.println(e.getMessage());
         }
     }
 }
