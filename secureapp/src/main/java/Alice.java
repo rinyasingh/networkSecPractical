@@ -30,7 +30,6 @@ public class Alice {
              alicePriv = KeyUtils.readPrivateKey("alice");
              bobPub = KeyUtils.readPublicKey("bob");
              aliceCert = KeyUtils.readX509Certificate("alice");
-             System.out.println("HERE: "+ aliceCert.toString());
         }
         catch (Exception e){
             System.out.println(e);
