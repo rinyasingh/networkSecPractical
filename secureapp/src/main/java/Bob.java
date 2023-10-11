@@ -1,6 +1,4 @@
 import keys.KeyUtils;
-
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.Base64;
 
 import javax.crypto.BadPaddingException;
@@ -13,36 +11,24 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Scanner;
 
 public class Bob {
     public static void main(String[] args) {
-        Security.addProvider(new BouncyCastleProvider());
-
         PublicKey bobPub = null;
         PrivateKey bobPriv = null;
         PublicKey alicePub = null;
-        X509Certificate aliceCert = null;
-        X509Certificate caCert = null;
         try{
 
             bobPub = KeyUtils.readPublicKey("bob");
             bobPriv = KeyUtils.readPrivateKey("bob");
             alicePub = KeyUtils.readPublicKey("alice");
-            aliceCert = KeyUtils.readX509Certificate("alice");
-            caCert = KeyUtils.readX509Certificate("ca");
         }
         catch (Exception e){
             System.out.println(e);
         }
-        
-        try {
-            aliceCert.verify(caCert.getPublicKey());
-        } catch (Exception e){
-            System.err.println("Alice's cert is wrong");
-        }
+
         Scanner scanner = new Scanner(System.in);
         int port = 5001;
 
