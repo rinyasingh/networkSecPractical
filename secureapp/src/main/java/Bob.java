@@ -5,13 +5,10 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.util.Arrays;
 import java.util.Scanner;
 
 public class Bob {
@@ -61,28 +58,9 @@ public class Bob {
                         boolean isDigestValid = MessageDigest.isEqual(receivedDigest, receivedMessageDigest);
 
                         if (isDigestValid) {
-                            // Convert the delimiter string to bytes
-                            byte[] delimiter = "#DELIMITER#".getBytes(StandardCharsets.UTF_8);
+                            String decryptedMessage = new String(receivedM, "UTF-8");
 
-                            // Search for the delimiter in the received data
-                            int delimiterIndex = indexOfByteArray(receivedM, delimiter);
-
-                            byte[] receivedImageBytes = Arrays.copyOfRange(receivedM, 0, delimiterIndex);
-                            byte[] receivedTextBytes = Arrays.copyOfRange(receivedM, delimiterIndex + delimiter.length, receivedM.length);
-
-                            byte[] receivedCombinedDataDigest = md.digest(receivedM);
-                            BufferedImage receivedImage = ImageIO.read(new ByteArrayInputStream(receivedImageBytes));
-                            String receivedTextMessage = new String(receivedTextBytes, StandardCharsets.UTF_8);
-
-
-                            File outputFile = new File("secureapp", "test.jpg");
-
-                            // Write the BufferedImage to the file
-                            ImageIO.write(receivedImage, "jpg", outputFile);
-
-//                            String decryptedMessage = new String(receivedM, "UTF-8");
-
-                            System.out.println("Alice: "+ receivedTextMessage);
+                            System.out.println("Alice: "+ decryptedMessage);
                         } else {
                             System.out.println("Message Digest is NOT Valid");
                         }
@@ -154,27 +132,5 @@ public class Bob {
         } catch (InvalidKeyException e) {
             throw new RuntimeException(e);
         }
-    }
-
-
-    public static int indexOfByteArray(byte[] source, byte[] target) {
-        if (source == null || target == null || target.length == 0 || source.length < target.length) {
-            return -1;
-        }
-
-        for (int i = 0; i <= source.length - target.length; i++) {
-            boolean found = true;
-            for (int j = 0; j < target.length; j++) {
-                if (source[i + j] != target[j]) {
-                    found = false;
-                    break;
-                }
-            }
-            if (found) {
-                return i;
-            }
-        }
-
-        return -1; // Not found
     }
 }
