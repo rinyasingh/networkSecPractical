@@ -1,14 +1,34 @@
 import java.io.*;
 import java.net.*;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-
+import java.security.KeyStore;
+import java.security.*;
 import org.bouncycastle.jce.provider.X509CertPairParser;
 
 import keys.KeyUtils;
 public class Server {
+    private static final String serverKeyStorePath = "secureapp/src/main/java/keys/KeyStoreServer";
+    private static final String serverKeystorePassword = "123456";
+    static PublicKey CAPublicKey;
+    
     public static void main(String[] args) {
         int port = 5001;
         boolean serverRunning = true;
+        // Verifying 
+        try {
+            FileInputStream fileInp = new FileInputStream(serverKeyStorePath);
+            KeyStore serverKeyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            char [] serverPassword = serverKeystorePassword.toCharArray();
+            serverKeyStore.load(fileInp, serverPassword);
+            CAPublicKey = serverKeyStore.getCertificate("ca").getPublicKey();
+            System.out.println("HERE: " +CAPublicKey.toString());
+        } catch (KeyStoreException | IOException |NoSuchAlgorithmException |CertificateException e) {
+            System.err.println(e.getMessage());
+        }
+
+
+
         // X509Certificate caCert = KeyUtils.readX509Certificate();
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started, waiting for Alice and Bob...");
