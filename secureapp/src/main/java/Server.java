@@ -1,15 +1,44 @@
 import java.io.*;
 import java.net.*;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.Security;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.provider.X509CertPairParser;
 
 import keys.KeyUtils;
 public class Server {
     public static void main(String[] args) {
+        Security.addProvider(new BouncyCastleProvider());
         int port = 5001;
         boolean serverRunning = true;
-        // X509Certificate caCert = KeyUtils.readX509Certificate();
+
+        X509Certificate aliceCert = null;
+        X509Certificate caCert = null;
+        X509Certificate bobCert = null;
+        X509Certificate serverCert = null;
+        // Boolean aliceVer = true;
+        // Boolean bobVer = true;
+        // Boolean caVer = true;
+        try {
+            aliceCert = KeyUtils.readX509Certificate("alice");
+            bobCert = KeyUtils.readX509Certificate("bob");
+            caCert = KeyUtils.readX509Certificate("ca");
+            serverCert = KeyUtils.readX509Certificate("server");
+            aliceCert.verify(caCert.getPublicKey());
+            bobCert.verify(caCert.getPublicKey());
+            caCert.verify(caCert.getPublicKey());
+        } catch (Exception e) {
+            System.err.println("NOPE");
+            e.printStackTrace();
+            // aliceVer = false;
+            // bobVer = false;
+            // caVer= false;
+        }
+        // System.out.println("Alice: " + aliceVer);
+        // System.out.println("Bob: " + bobVer);
+        // System.out.println("CA: " + caVer);
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Server started, waiting for Alice and Bob...");
 

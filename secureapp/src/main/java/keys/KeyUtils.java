@@ -2,6 +2,7 @@ package keys;
 
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.jcajce.provider.asymmetric.X509;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
@@ -9,6 +10,9 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.*;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 
 public class KeyUtils {
@@ -81,5 +85,26 @@ public class KeyUtils {
 
         System.out.println(privateKey);
         return privateKey;
+    }
+
+    public static X509Certificate readX509Certificate(String name) throws CertificateException, IOException {
+        File certFile = new File("secureapp/src/main/java/keys/certificates/" + name+ "-cert.pem");
+        CertificateFactory certFactory = null;
+        X509Certificate outputCert = null;
+        if (!certFile.exists()) {
+            throw new FileNotFoundException("Certificate file not found");
+        }
+        try (FileInputStream fileInput = new FileInputStream(certFile)) {
+            try {
+                certFactory = CertificateFactory.getInstance("X.509", "BC");
+                outputCert = (X509Certificate) certFactory.generateCertificate(fileInput);
+            } catch (NoSuchProviderException e) {
+                System.err.println(e.getMessage());;
+            }
+        }
+        if (name == "alice") {
+            System.out.println(outputCert.toString());
+        }
+        return outputCert;
     }
 }

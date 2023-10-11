@@ -3,6 +3,7 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.*;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Scanner;
 import keys.KeyUtils;
@@ -13,19 +14,22 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import java.io.FileReader;
+
 import java.util.jar.JarException;
 
 public class Alice {
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        Security.addProvider(new BouncyCastleProvider());
         PublicKey alicePub = null;
         PrivateKey alicePriv = null;
         PublicKey bobPub = null;
+        X509Certificate aliceCert = null;
         try{
 
              alicePub = KeyUtils.readPublicKey("alice");
              alicePriv = KeyUtils.readPrivateKey("alice");
              bobPub = KeyUtils.readPublicKey("bob");
+             aliceCert = KeyUtils.readX509Certificate("alice");
         }
         catch (Exception e){
             System.out.println(e);
