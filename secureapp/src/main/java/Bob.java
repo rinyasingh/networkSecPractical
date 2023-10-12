@@ -11,19 +11,28 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Scanner;
 
 public class Bob {
+    private static final String bobKeyStorePath = "secureapp/src/main/java/keys/KeyStoreBob";
+    private static final String bobKeyStorePassword = "123456";
+    private static final String bobAlias = "bob-alias";
     public static void main(String[] args) {
-        PublicKey bobPub = null;
+        PublicKey bobPublicKey = null;
         PrivateKey bobPriv = null;
         PublicKey alicePub = null;
+        X509Certificate bobCert = null;
+        
         try{
-
-            bobPub = KeyUtils.readPublicKey("bob");
-            bobPriv = KeyUtils.readPrivateKey("bob");
-            alicePub = KeyUtils.readPublicKey("alice");
+            FileInputStream fileInp = new FileInputStream(bobKeyStorePath);
+            KeyStore bobKeyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            char [] bobPassword = bobKeyStorePassword.toCharArray();
+            bobKeyStore.load(fileInp, bobPassword);
+            bobCert =  (X509Certificate) bobKeyStore.getCertificate(bobAlias);
+            bobPublicKey = bobCert.getPublicKey();
+            System.out.println("Bob's certificate and public keys loaded");
         }
         catch (Exception e){
             System.out.println(e);

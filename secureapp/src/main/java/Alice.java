@@ -3,9 +3,12 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.*;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Scanner;
 import keys.KeyUtils;
+
+import org.bouncycastle.jcajce.provider.asymmetric.X509;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.Base64;
 
@@ -13,19 +16,26 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import java.io.FileReader;
+
 import java.util.jar.JarException;
 
 public class Alice {
+    private static final String aliceKeyStorePath = "secureapp/src/main/java/keys/KeyStoreAlice";
+    private static final String aliceKeyStorePassword = "123456";
+    private static final String aliceAlias = "alice-alias";
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        PublicKey alicePub = null;
+        PublicKey alicePublicKey = null;
         PrivateKey alicePriv = null;
         PublicKey bobPub = null;
+        X509Certificate aliceCert = null;
         try{
-
-             alicePub = KeyUtils.readPublicKey("alice");
-             alicePriv = KeyUtils.readPrivateKey("alice");
-             bobPub = KeyUtils.readPublicKey("bob");
+            FileInputStream fileInp = new FileInputStream(aliceKeyStorePath);
+            KeyStore aliceKeyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            char [] alicePassword = aliceKeyStorePassword.toCharArray();
+            aliceKeyStore.load(fileInp, alicePassword);
+            aliceCert =  (X509Certificate) aliceKeyStore.getCertificate(aliceAlias);
+            alicePublicKey = aliceCert.getPublicKey();
+            System.out.println("Alice's certificate and public keys loaded");
         }
         catch (Exception e){
             System.out.println(e);

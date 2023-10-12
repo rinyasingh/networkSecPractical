@@ -22,7 +22,7 @@ public class Server {
             char [] serverPassword = serverKeystorePassword.toCharArray();
             serverKeyStore.load(fileInp, serverPassword);
             CAPublicKey = serverKeyStore.getCertificate("ca").getPublicKey();
-            System.out.println("HERE: " +CAPublicKey.toString());
+            System.out.println("Server certificate loaded");
         } catch (KeyStoreException | IOException |NoSuchAlgorithmException |CertificateException e) {
             System.err.println(e.getMessage());
         }
