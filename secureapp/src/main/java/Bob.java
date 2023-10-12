@@ -56,7 +56,7 @@ public class Bob {
                 byte[] sessionKey = new byte[16];
                 secureRandom.nextBytes(sessionKey);
 
-                // Encrypt the session key with Bob's public key using RSA with PKCS1Padding
+                // Encrypt the session key with Alice's public key using RSA with PKCS1Padding
                 System.out.println("ENCRYPTING SESSION KEY WITH ALICE'S PUBLIC KEY");
                 byte[] encryptedSessionKey = rsaEngine.processBlock(sessionKey, 0, sessionKey.length);
 
