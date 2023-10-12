@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -96,11 +97,12 @@ public class Alice {
 
 
             //RECEIVE MESSAGES FROM BOB
+            PublicKey finalBobPub = bobPub;
             Thread bobListener = new Thread(() -> {
                 try {
                     while (true) {
                         String base64EncryptedMessage = dataInputStream.readUTF();
-
+                        int digestLength = 256; // For SHA-256
                         // Decode the Base64 string back into a byte array
                         byte[] encryptedMessage = Base64.getDecoder().decode(base64EncryptedMessage);
 
@@ -110,12 +112,29 @@ public class Alice {
                             if (sessionKey != null) {
                                 Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
                                 cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
-
                                 byte[] decryptedMessage = cipher.doFinal(encryptedMessage);
 
-                                // Process the decrypted message as needed
-                                String decryptedMessageString = new String(decryptedMessage, "UTF-8");
-                                System.out.println("Decrypted message: " + decryptedMessageString);
+                                int messageLength = decryptedMessage.length - digestLength;
+                                byte[] receivedM = new byte[messageLength];
+                                byte[] receivedDigest = new byte[digestLength];
+                                System.arraycopy(decryptedMessage, 0, receivedM, 0, messageLength);
+                                System.arraycopy(decryptedMessage, messageLength, receivedDigest, 0, digestLength);
+
+                                // Decrypt digest with the sender's public key
+                                Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+                                decryptCipher.init(Cipher.DECRYPT_MODE, finalBobPub);
+                                byte[] decryptedDigest = decryptCipher.doFinal(receivedDigest);
+
+                                MessageDigest md = MessageDigest.getInstance("SHA-256");
+                                byte[] receivedMessageDigest = md.digest(receivedM);
+
+                                boolean isDigestValid = MessageDigest.isEqual(receivedMessageDigest, decryptedDigest);
+
+                                if (isDigestValid) {
+                                    // Process the decrypted message as needed
+                                    String decryptedMessageString = new String(receivedM, "UTF-8");
+                                    System.out.println("Decrypted message: " + decryptedMessageString);
+                                }
                             }
                             else{
                                 System.out.println("NO SESSION KEY");
@@ -143,16 +162,27 @@ public class Alice {
                     try {
                         byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
                         if (sessionKey != null) {
-                        byte[] messageBytes = message.getBytes();
-                        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
-                        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
-                        byte[] encryptedMessage = cipher.doFinal(messageBytes);
+                            MessageDigest md = MessageDigest.getInstance("SHA-256");
+                            byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
+                            byte[] digest = md.digest(messageBytes);
 
-                        // Encode the entire encryptedMessageBytes
-                        String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
-                        dataOutputStream.writeUTF(Base64EncryptedMessage);
+                            //2. ENCRYPT DIGEST WITH PRIVATE KEY
+                            Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+                            rsaCipher.init(Cipher.ENCRYPT_MODE, alicePriv);
+                            byte[] privEncryptedDigest = rsaCipher.doFinal(digest);
+                            byte[] data = new byte[messageBytes.length + privEncryptedDigest.length];
+
+                            System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+                            System.arraycopy(privEncryptedDigest, 0, data, messageBytes.length, privEncryptedDigest.length);
+
+                            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
+                            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
+                            byte[] encryptedMessage = cipher.doFinal(data);
+
+                            // Encode the entire encryptedMessageBytes
+                            String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
+                            dataOutputStream.writeUTF(Base64EncryptedMessage);
                         }
-
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
