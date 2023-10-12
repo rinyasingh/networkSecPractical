@@ -3,6 +3,7 @@ import java.net.*;
 
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.sql.SQLOutput;
 
 public class Server {
     public static void main(String[] args) {
@@ -32,10 +33,10 @@ public class Server {
                 {
                     aliceSocket = tempSocket;
                     aliceInput =  tempInputStream;
-                    System.out.println("Alice connected");
+                    System.out.println("ALICE CONNECTED");
                     isFirstToConnect = true;
                     try {
-                        System.out.println("SENDING TRUE TO ALICE");
+                        System.out.println("SENDING "+ isFirstToConnect+ " TO ALICE");
                         DataOutputStream aliceOutput = new DataOutputStream(aliceSocket.getOutputStream());
                         aliceOutput.writeBoolean(isFirstToConnect);
                     } catch (IOException e) {
@@ -47,10 +48,10 @@ public class Server {
                 {
                     bobSocket = tempSocket;
                     bobInput =  tempInputStream;
-                    System.out.println("Bob connected");
+                    System.out.println("BOB CONNECTED");
                     isFirstToConnect = true;
                     try {
-                        System.out.println("SENDING TRUE TO BOB");
+                        System.out.println("SENDING "+ isFirstToConnect+ " TO BOB");
                         DataOutputStream bobOutput = new DataOutputStream(bobSocket.getOutputStream());
                         bobOutput.writeBoolean(isFirstToConnect);
                     } catch (IOException e) {
@@ -67,11 +68,11 @@ public class Server {
                 {
                     aliceSocket = tempSocket;
                     aliceInput =  tempInputStream;
-                    System.out.println("Alice connected");
+                    System.out.println("ALICE CONNECTED");
 
                     isFirstToConnect = false;
                     try {
-                        System.out.println("SENDING FALSE TO ALICE");
+                        System.out.println("SENDING "+ isFirstToConnect+ " TO ALICE");
                         DataOutputStream aliceOutput = new DataOutputStream(aliceSocket.getOutputStream());
                     aliceOutput.writeBoolean(isFirstToConnect);
                     } catch (IOException e) {
@@ -83,11 +84,11 @@ public class Server {
                 {
                     bobSocket = tempSocket;
                     bobInput =  tempInputStream;
-                    System.out.println("Bob connected");
+                    System.out.println("BOB CONNECTED");
 
                     isFirstToConnect = false;
                     try {
-                        System.out.println("SENDING FALSE TO BOB");
+                        System.out.println("SENDING "+ isFirstToConnect + " TO BOB");
                         DataOutputStream bobOutput = new DataOutputStream(bobSocket.getOutputStream());
                         bobOutput.writeBoolean(isFirstToConnect);
                     } catch (IOException e) {
@@ -128,9 +129,11 @@ public class Server {
             while (true) {
                 // Receive a message from the source socket
                 String message = sourceIn.readUTF();
+                System.out.println("RECEIVING MESSAGE FROM SOURCE SOCKET");
 
                  // Forward the message to the destination socket
                 destinationOut.writeUTF(message);
+                System.out.println("SENDING MESSAGE TO DESTINATION SOCKET");
 
             }
 
