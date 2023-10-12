@@ -110,6 +110,9 @@ public class Bob {
                                 String decryptedMessageString = new String(decryptedMessage, "UTF-8");
                                 System.out.println("Decrypted message: " + decryptedMessageString);
                             }
+                            else{
+                                System.out.println("NO SESSION KEY");
+                            }
                         }
                         catch (Exception e) {
                             throw new RuntimeException(e);

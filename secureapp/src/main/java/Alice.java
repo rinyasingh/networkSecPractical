@@ -99,7 +99,6 @@ public class Alice {
             Thread bobListener = new Thread(() -> {
                 try {
                     while (true) {
-
                         String base64EncryptedMessage = dataInputStream.readUTF();
 
                         // Decode the Base64 string back into a byte array
@@ -117,6 +116,9 @@ public class Alice {
                                 // Process the decrypted message as needed
                                 String decryptedMessageString = new String(decryptedMessage, "UTF-8");
                                 System.out.println("Decrypted message: " + decryptedMessageString);
+                            }
+                            else{
+                                System.out.println("NO SESSION KEY");
                             }
                         }
                         catch (Exception e) {
