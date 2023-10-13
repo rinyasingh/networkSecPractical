@@ -4,6 +4,8 @@ import java.net.*;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 
+import org.bouncycastle.asn1.dvcs.Data;
+
 public class Server {
     public static void main(String[] args) {
         int port = 5001;
@@ -73,7 +75,7 @@ public class Server {
                     try {
                         System.out.println("SENDING FALSE TO ALICE");
                         DataOutputStream aliceOutput = new DataOutputStream(aliceSocket.getOutputStream());
-                    aliceOutput.writeBoolean(isFirstToConnect);
+                        aliceOutput.writeBoolean(isFirstToConnect);
                     } catch (IOException e) {
                         System.out.println(e.getMessage());
                     }
@@ -90,14 +92,17 @@ public class Server {
                         System.out.println("SENDING FALSE TO BOB");
                         DataOutputStream bobOutput = new DataOutputStream(bobSocket.getOutputStream());
                         bobOutput.writeBoolean(isFirstToConnect);
+
                     } catch (IOException e) {
                         System.out.println(e.getMessage());
                     }
 
 
                 }
-
-                // Create separate threads for Alice and Bob to handle bidirectional communication
+                
+                forwardMessages(aliceSocket, bobSocket, aliceInput);
+                // forwardMessages(bobSocket, aliceSocket, bobInput);
+                 {// Create separate threads for Alice and Bob to handle bidirectional communication
                 // Need to declare new sockets here because lambda expression needs
                 // variables that are final or effectively final
                 Socket finalAliceSocket = aliceSocket;
@@ -114,6 +119,7 @@ public class Server {
 
                 aliceThread.start();
                 bobThread.start();
+                }
             }
 
         } catch (IOException | KeyStoreException e) {
@@ -128,7 +134,6 @@ public class Server {
             while (true) {
                 // Receive a message from the source socket
                 String message = sourceIn.readUTF();
-
                  // Forward the message to the destination socket
                 destinationOut.writeUTF(message);
 
