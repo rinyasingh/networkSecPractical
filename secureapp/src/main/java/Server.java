@@ -1,15 +1,17 @@
 import java.io.*;
 import java.net.*;
-import java.util.Arrays;
 
-import static java.lang.System.exit;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.sql.SQLOutput;
 
 public class Server {
     public static void main(String[] args) {
         int port = 5001;
+
+        boolean isFirstToConnect = false;
         boolean serverRunning = true;
+
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
             
@@ -31,13 +33,30 @@ public class Server {
                 {
                     aliceSocket = tempSocket;
                     aliceInput =  tempInputStream;
-                    System.out.println("Alice connected");
+                    System.out.println("ALICE CONNECTED");
+                    isFirstToConnect = true;
+                    try {
+                        System.out.println("SENDING "+ isFirstToConnect+ " TO ALICE");
+                        DataOutputStream aliceOutput = new DataOutputStream(aliceSocket.getOutputStream());
+                        aliceOutput.writeBoolean(isFirstToConnect);
+                    } catch (IOException e) {
+                        System.out.println(e.getMessage());
+                    }
+
                 }
                 else if(userA.equals("bob"))
                 {
                     bobSocket = tempSocket;
                     bobInput =  tempInputStream;
-                    System.out.println("Bob connected");
+                    System.out.println("BOB CONNECTED");
+                    isFirstToConnect = true;
+                    try {
+                        System.out.println("SENDING "+ isFirstToConnect+ " TO BOB");
+                        DataOutputStream bobOutput = new DataOutputStream(bobSocket.getOutputStream());
+                        bobOutput.writeBoolean(isFirstToConnect);
+                    } catch (IOException e) {
+                        System.out.println(e.getMessage());
+                    }
                 }
 
                 
@@ -49,13 +68,34 @@ public class Server {
                 {
                     aliceSocket = tempSocket;
                     aliceInput =  tempInputStream;
-                    System.out.println("Alice connected");
+                    System.out.println("ALICE CONNECTED");
+
+                    isFirstToConnect = false;
+                    try {
+                        System.out.println("SENDING "+ isFirstToConnect+ " TO ALICE");
+                        DataOutputStream aliceOutput = new DataOutputStream(aliceSocket.getOutputStream());
+                    aliceOutput.writeBoolean(isFirstToConnect);
+                    } catch (IOException e) {
+                        System.out.println(e.getMessage());
+                    }
+
                 }
                 else if(userB.equals("bob"))
                 {
                     bobSocket = tempSocket;
                     bobInput =  tempInputStream;
-                    System.out.println("Bob connected");
+                    System.out.println("BOB CONNECTED");
+
+                    isFirstToConnect = false;
+                    try {
+                        System.out.println("SENDING "+ isFirstToConnect + " TO BOB");
+                        DataOutputStream bobOutput = new DataOutputStream(bobSocket.getOutputStream());
+                        bobOutput.writeBoolean(isFirstToConnect);
+                    } catch (IOException e) {
+                        System.out.println(e.getMessage());
+                    }
+
+
                 }
 
                 // Create separate threads for Alice and Bob to handle bidirectional communication
@@ -78,7 +118,7 @@ public class Server {
             }
 
         } catch (IOException | KeyStoreException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -89,15 +129,17 @@ public class Server {
             while (true) {
                 // Receive a message from the source socket
                 String message = sourceIn.readUTF();
+                System.out.println("RECEIVING MESSAGE FROM SOURCE SOCKET");
 
                  // Forward the message to the destination socket
                 destinationOut.writeUTF(message);
+                System.out.println("SENDING MESSAGE TO DESTINATION SOCKET");
 
             }
 
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
     }
