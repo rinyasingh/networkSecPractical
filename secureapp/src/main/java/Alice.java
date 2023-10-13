@@ -181,41 +181,19 @@ public class Alice {
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
                             ImageIO.write(image, "jpg", baos);
 
-                            //This loop reads the image data from an input stream,(fis),and stores it in a buffer.
-                            //It reads the image data in chunks of buffer.length bytes at a time until it reaches the
-                            //end of the input stream.
-//                            while ((bytesRead = fis.read(buffer)) != -1) {
-//                                baos.write(buffer, 0, bytesRead);
-//                            }
-
                             byte[] imageBytes = baos.toByteArray();
 
                             String base64Image = Base64.getEncoder().encodeToString((imageBytes));
                             String stringMessage = base64Image+" DELIMITER "+caption;
 
-//                            byte[] byteEncodedImage = base64Image.getBytes(StandardCharsets.UTF_8);
-//                            byte[] byteCaption = caption.getBytes(StandardCharsets.UTF_8);
-
-//                            byte[] delimiter = new byte[]{0x00}; // Null byte as delimiter
-
-//                            byte[] unCompressedMessageBytes = new byte[byteEncodedImage.length + 1 + byteCaption.length];
-//                            System.arraycopy(byteEncodedImage, 0, unCompressedMessageBytes, 0, byteEncodedImage.length);
-//                            System.arraycopy(delimiter, 0, unCompressedMessageBytes, byteEncodedImage.length, 1);
-//                            System.arraycopy(byteCaption, 0, unCompressedMessageBytes, byteEncodedImage.length + 1, byteCaption.length);
-//
-//                            byte[] messageBytes = compressData(unCompressedMessageBytes);
-//                            System.out.println(messageBytes.length);
                             MessageDigest md = MessageDigest.getInstance("SHA-1");
-//                            byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
                             byte[] digest = md.digest(stringMessage.getBytes(StandardCharsets.UTF_8));
-//                            byte[] privEncryptedDigest = digest;
 
                             //2. ENCRYPT DIGEST WITH PRIVATE KEY
                             Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                             rsaCipher.init(Cipher.ENCRYPT_MODE, alicePriv);
                             byte[] privEncryptedDigest = rsaCipher.doFinal(digest);
 
-//                            String mmMessage = stringMessage+"\n"+privEncryptedDigest.toString();
                             System.out.println("shout");
                             Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
                             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
@@ -226,7 +204,7 @@ public class Alice {
                             System.arraycopy(encryptedMessage, 0, data, 0, encryptedMessage.length);
                             System.arraycopy(privEncryptedDigest, 0, data, encryptedMessage.length, privEncryptedDigest.length);
                             System.out.println(stringMessage);
-//                          Encode the entire encryptedMessageBytes
+
                             String Base64EncryptedMessage = Base64.getEncoder().encodeToString(data);
                             System.out.println(data.toString());
                             dataOutputStream.writeUTF(Base64EncryptedMessage);

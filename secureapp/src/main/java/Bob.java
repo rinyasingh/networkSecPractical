@@ -7,6 +7,8 @@ import org.bouncycastle.crypto.util.PublicKeyFactory;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -137,15 +139,21 @@ public class Bob {
 //                                    if (delimiterPosition != -1)
                                     //{
                                         // Split the message into imageBytes and captionBytes
-                                    String stringM = decryptedMessage.toString();
+                                    String stringM =new String(decryptedMessage, StandardCharsets.UTF_8);
                                     System.out.println(6);
-//
 //                                        String decryptedMessageString = new String(captionBytes, "UTF-8");
                                     System.out.println("Decrypted message: " + stringM);
+
+                                    String[] lines = stringM.split(" DELIMITER ");
+
+                                    System.out.println("Decrypted message: " + lines[0]);
+                                    System.out.println("Decrypted message: " + lines[1]);
+                                    saveDecodedDataToDesktop(lines[0], "test");
 //                                    } else {
 //                                        System.out.println("DECRYPTION ERROR!");
 //                                    }
                                 }
+
                             }
                             else{
                                 System.out.println("NO SESSION KEY");
@@ -209,6 +217,23 @@ public class Bob {
         }
     }
 
+    public static boolean saveDecodedDataToDesktop(String base64Image, String fileName) {
+        try {
+            // Decode the Base64 image data
+            byte[] decodedImageBytes = Base64.getDecoder().decode(base64Image);
+
+            // Create a BufferedImage from the decoded byte array
+            ByteArrayInputStream bais = new ByteArrayInputStream(decodedImageBytes);
+            BufferedImage image = ImageIO.read(bais);
+
+            // Save the decrypted image to the specified output path
+            ImageIO.write(image, "jpg", new File("test.jpg"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return false; // Data save operation failed
+    }
     public static byte[] decompressData(byte[] compressedData) {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(compressedData);
              GZIPInputStream gzipInputStream = new GZIPInputStream(bais);
