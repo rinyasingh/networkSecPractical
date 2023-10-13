@@ -91,127 +91,132 @@ public class Alice {
 
             // get Bob's Certificate
             String encCert = dataInputStream.readUTF();
-            
+            System.out.println(encCert);
             byte [] certBytes = Base64.getDecoder().decode((encCert.replace("[", "")).replace("]", ""));
             CertificateFactory bobCertificateFactory = CertificateFactory.getInstance("X.509") ;
             X509Certificate bobCert = (X509Certificate) bobCertificateFactory.generateCertificate(new ByteArrayInputStream(certBytes));
-            // System.out.println("HERE " + aliceCert.toString());
+            System.out.println("HERE " + aliceCert.toString());
 
-            if (isFirstConnected) {
-                
-                System.out.println("CREATING SECRET KEY");
+            try {
+                bobCert.verify(caPublicKey);
+                verified= true;
+                System.out.print("Verified Bob's certificate");
 
-                // Initialize the RSA engine
-                RSAKeyParameters rsaPublicKey = (RSAKeyParameters)PublicKeyFactory.createKey(bobPublicKey.getEncoded());
-                RSAEngine rsaEngine = new RSAEngine();
-                rsaEngine.init(true, rsaPublicKey);
+                if (isFirstConnected) {
+                    
+                    System.out.println("CREATING SECRET KEY");
 
-                // Generate a random session key.
-                SecureRandom secureRandom = new SecureRandom();
-                byte[] sessionKey = new byte[16];
-                secureRandom.nextBytes(sessionKey);
-                // System.out.println("sessionkey: "+ Arrays.toString(sessionKey));
+                    // Initialize the RSA engine
+                    RSAKeyParameters rsaPublicKey = (RSAKeyParameters)PublicKeyFactory.createKey(bobPublicKey.getEncoded());
+                    RSAEngine rsaEngine = new RSAEngine();
+                    rsaEngine.init(true, rsaPublicKey);
 
-                // Encrypt the session key with Bob's public key using RSA with PKCS1Padding
-                byte[] encryptedSessionKey = rsaEngine.processBlock(sessionKey, 0, sessionKey.length);
+                    // Generate a random session key.
+                    SecureRandom secureRandom = new SecureRandom();
+                    byte[] sessionKey = new byte[16];
+                    secureRandom.nextBytes(sessionKey);
+                    // System.out.println("sessionkey: "+ Arrays.toString(sessionKey));
 
-                // Encode the session key using base64
-                String base64SessionKey = Base64.getEncoder().encodeToString(encryptedSessionKey);
-                // System.out.println("Base64-encoded Session Key: " + base64SessionKey);
+                    // Encrypt the session key with Bob's public key using RSA with PKCS1Padding
+                    byte[] encryptedSessionKey = rsaEngine.processBlock(sessionKey, 0, sessionKey.length);
 
-                dataOutputStream.writeUTF(base64SessionKey);
+                    // Encode the session key using base64
+                    String base64SessionKey = Base64.getEncoder().encodeToString(encryptedSessionKey);
+                    // System.out.println("Base64-encoded Session Key: " + base64SessionKey);
 
-                sessionKeyRef.set(sessionKey);
-            }
-            else if (!isFirstConnected){
-                System.out.println("RECEIVING SECRET KEY");
-                // Read the base64-encoded session key as a string
-                String base64EncryptedSessionKey = dataInputStream.readUTF();
+                    dataOutputStream.writeUTF(base64SessionKey);
 
-                // Decode the Base64 string back into a byte array
-                byte[] encryptedSessionKey = Base64.getDecoder().decode(base64EncryptedSessionKey);
+                    sessionKeyRef.set(sessionKey);
+                }
+                else if (!isFirstConnected){
+                    System.out.println("RECEIVING SECRET KEY");
+                    // Read the base64-encoded session key as a string
+                    String base64EncryptedSessionKey = dataInputStream.readUTF();
 
-                // Initialize the RSA engine with Bob's private key
-                RSAKeyParameters rsaPrivateKey = (RSAKeyParameters) PrivateKeyFactory.createKey(alicePrivateKey.getEncoded());
-                RSAEngine rsaEngine = new RSAEngine();
-                rsaEngine.init(false, rsaPrivateKey);
+                    // Decode the Base64 string back into a byte array
+                    byte[] encryptedSessionKey = Base64.getDecoder().decode(base64EncryptedSessionKey);
 
-                // Decrypt the encrypted session key
-                byte[] sessionKey = rsaEngine.processBlock(encryptedSessionKey, 0, encryptedSessionKey.length);
-                // System.out.println("DECRYPTED key "+ Arrays.toString(sessionKey));
+                    // Initialize the RSA engine with Bob's private key
+                    RSAKeyParameters rsaPrivateKey = (RSAKeyParameters) PrivateKeyFactory.createKey(alicePrivateKey.getEncoded());
+                    RSAEngine rsaEngine = new RSAEngine();
+                    rsaEngine.init(false, rsaPrivateKey);
 
-                sessionKeyRef.set(sessionKey);
-            }
+                    // Decrypt the encrypted session key
+                    byte[] sessionKey = rsaEngine.processBlock(encryptedSessionKey, 0, encryptedSessionKey.length);
+                    // System.out.println("DECRYPTED key "+ Arrays.toString(sessionKey));
 
-//            System.out.println(isFirstConnected);
+                    sessionKeyRef.set(sessionKey);
+                }
 
+                //RECEIVE MESSAGES FROM BOB
+                Thread bobListener = new Thread(() -> {
+                    try {
+                        while (true) {
 
-            //RECEIVE MESSAGES FROM BOB
-            Thread bobListener = new Thread(() -> {
-                try {
-                    while (true) {
+                            String base64EncryptedMessage = dataInputStream.readUTF();
 
-                        String base64EncryptedMessage = dataInputStream.readUTF();
+                            // Decode the Base64 string back into a byte array
+                            byte[] encryptedMessage = Base64.getDecoder().decode(base64EncryptedMessage);
 
-                        // Decode the Base64 string back into a byte array
-                        byte[] encryptedMessage = Base64.getDecoder().decode(base64EncryptedMessage);
+                            try {
+                                byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
 
+                                if (sessionKey != null) {
+                                    Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
+                                    cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
+
+                                    byte[] decryptedMessage = cipher.doFinal(encryptedMessage);
+
+                                    // Process the decrypted message as needed
+                                    String decryptedMessageString = new String(decryptedMessage, "UTF-8");
+                                    System.out.println("Decrypted message: " + decryptedMessageString);
+                                }
+                            }
+                            catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+
+                        }
+                    } catch (IOException e) {
+                        System.out.println(e.getMessage());
+                    }
+                });
+                bobListener.start();
+
+                //SEND MESSAGES TO BOB
+                while (true) {
+                    String message = scanner.nextLine();
+                    System.out.println("SENDING PLAIN MESSAGE:");
+                    // System.out.println(message);
+
+                    //Checks so it doesn't send empty messages
+                    if (!message.isEmpty()) {
                         try {
                             byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
-
                             if (sessionKey != null) {
-                                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
-                                cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
+                            byte[] messageBytes = message.getBytes();
+                            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
+                            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
+                            byte[] encryptedMessage = cipher.doFinal(messageBytes);
 
-                                byte[] decryptedMessage = cipher.doFinal(encryptedMessage);
-
-                                // Process the decrypted message as needed
-                                String decryptedMessageString = new String(decryptedMessage, "UTF-8");
-                                // System.out.println("Decrypted message: " + decryptedMessageString);
+                            // Encode the entire encryptedMessageBytes
+                            String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
+                            dataOutputStream.writeUTF(Base64EncryptedMessage);
                             }
-                        }
-                        catch (Exception e) {
+
+                        } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
 
-                    }
-                } catch (IOException e) {
-                    System.out.println(e.getMessage());
-                }
-            });
-            bobListener.start();
-
-            //SEND MESSAGES TO BOB
-            while (true) {
-                String message = scanner.nextLine();
-                System.out.println("SENDING PLAIN MESSAGE:");
-                // System.out.println(message);
-
-                //Checks so it doesn't send empty messages
-                if (!message.isEmpty()) {
-                    try {
-                        byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
-                        if (sessionKey != null) {
-                        byte[] messageBytes = message.getBytes();
-                        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
-                        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
-                        byte[] encryptedMessage = cipher.doFinal(messageBytes);
-
-                        // Encode the entire encryptedMessageBytes
-                        String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
-                        dataOutputStream.writeUTF(Base64EncryptedMessage);
+                        if (message.equalsIgnoreCase("exit")) {
+                            break;
                         }
-
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-
-                    if (message.equalsIgnoreCase("exit")) {
-                        break;
                     }
                 }
+                socket.close();
+            } catch (Exception e) {
+                System.err.println("VERIFICATION FAILED");
             }
-            socket.close();
         } catch (Exception e) {
             System.out.println(e);
             System.out.println(e.getMessage());

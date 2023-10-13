@@ -7,13 +7,6 @@ keytool -genkeypair -keyalg RSA -keysize 2048 -validity 180 -alias ca -dname "CN
 keytool -exportcert -rfc -alias ca -keystore KeyStoreCA -storepass 123456 > ca.cer
 echo -e "Created Self-Signed CA Certificate."
 
-echo -e "--------- Creating Server's Certificate  ---------"
-keytool -genkeypair -keyalg RSA -keysize 2048 -validity 180 -alias server -dname "CN=ZA, O=Security, C=IT" -keystore KeyStoreServer -storepass 123456  -keypass 123456
-keytool -certreq -alias server -storepass 123456 -keystore KeyStoreServer | keytool  -gencert -alias ca -rfc -keystore KeyStoreCA -storepass 123456 > server.cer
-cat ca.cer | keytool -importcert -alias ca -noprompt -keystore KeyStoreServer -storepass 123456
-cat ca.cer server.cer | keytool -importcert -alias server -keystore KeyStoreServer -storepass 123456
-echo -e "Created  Server's Certificate. "
-
 echo -e "--------- Creating Alice's Certificate ---------"
 keytool -genkeypair -keyalg RSA -keysize 2048 -validity 180 -alias alice-alias -dname "CN=ZA, O=WC, C=IT" -keystore KeyStoreAlice -storepass 123456  -keypass 123456
 keytool -certreq -alias alice-alias -keystore KeyStoreAlice -storepass 123456 | keytool -gencert -alias ca -rfc -keystore KeyStoreCA -storepass 123456 > alice.cer

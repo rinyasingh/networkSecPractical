@@ -99,10 +99,7 @@ public class Server {
 
 
                 }
-                
-                forwardMessages(aliceSocket, bobSocket, aliceInput);
-                // forwardMessages(bobSocket, aliceSocket, bobInput);
-                 {// Create separate threads for Alice and Bob to handle bidirectional communication
+                // Create separate threads for Alice and Bob to handle bidirectional communication
                 // Need to declare new sockets here because lambda expression needs
                 // variables that are final or effectively final
                 Socket finalAliceSocket = aliceSocket;
@@ -119,7 +116,7 @@ public class Server {
 
                 aliceThread.start();
                 bobThread.start();
-                }
+                
             }
 
         } catch (IOException | KeyStoreException e) {
@@ -136,7 +133,7 @@ public class Server {
                 String message = sourceIn.readUTF();
                  // Forward the message to the destination socket
                 destinationOut.writeUTF(message);
-
+                System.out.println(sourceSocket.toString());
             }
 
 
