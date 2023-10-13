@@ -14,10 +14,12 @@ import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.sql.SQLOutput;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.Inflater;
 
 public class Bob {
@@ -105,50 +107,44 @@ public class Bob {
                             byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
                             System.out.println("1");
                             if (sessionKey != null) {
-                                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
-                                cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
-                                byte[] decryptedMessage = cipher.doFinal(encryptedMessage);
-
-                                int messageLength = decryptedMessage.length - digestLength;
+                                int messageLength = encryptedMessage.length - digestLength;
                                 byte[] receivedM = new byte[messageLength];
                                 byte[] receivedDigest = new byte[digestLength];
-                                System.arraycopy(decryptedMessage, 0, receivedM, 0, messageLength);
-                                System.arraycopy(decryptedMessage, messageLength, receivedDigest, 0, digestLength);
+                                System.arraycopy(encryptedMessage, 0, receivedM, 0, messageLength);
+                                System.arraycopy(encryptedMessage, messageLength, receivedDigest, 0, digestLength);
                                 System.out.println("2");
+
+                                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
+                                cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
+                                byte[] decryptedMessage = cipher.doFinal(receivedM);
+                                System.out.println(decryptedMessage.toString());
+                                System.out.println(receivedM.toString());
+
                                 // Decrypt digest with the sender's public key
                                 Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                                 decryptCipher.init(Cipher.DECRYPT_MODE, finalAlicePub);
                                 byte[] decryptedDigest = decryptCipher.doFinal(receivedDigest);
 
-                                MessageDigest md = MessageDigest.getInstance("SHA-256");
-                                byte[] receivedMessageDigest = md.digest(receivedM);
+                                MessageDigest md = MessageDigest.getInstance("SHA-1");
+                                byte[] receivedMessageDigest = md.digest(decryptedMessage);
                                 System.out.println("3");
                                 boolean isDigestValid = MessageDigest.isEqual(receivedMessageDigest, decryptedDigest);
 
                                 if (isDigestValid) {
                                     // Process the decrypted message as needed
-                                    byte[] decompressedMessage = decompressData(receivedM);
                                     System.out.println("4");
-                                    int delimiterPosition = -1;
-                                    for (int i = 0; i < decompressedMessage.length; i++) {
-                                        if (decompressedMessage[i] == 0x00) {
-                                            delimiterPosition = i;
-                                            break;
-                                        }
-                                    }
                                     System.out.println("5");
-                                    if (delimiterPosition != -1) {
+//                                    if (delimiterPosition != -1)
+                                    //{
                                         // Split the message into imageBytes and captionBytes
-                                        byte[] imageBytes = Arrays.copyOfRange(decompressedMessage, 0, delimiterPosition);
-                                        byte[] captionBytes = Arrays.copyOfRange(decompressedMessage, delimiterPosition + 1, decompressedMessage.length);
-
-                                        String decryptedMessageString = new String(captionBytes, "UTF-8");
-                                        System.out.println("Decrypted message: " + decryptedMessageString);
-                                    } else {
-                                        System.out.println("DECRYPTION ERROR!");
-                                    }
-
-
+                                    String stringM = decryptedMessage.toString();
+                                    System.out.println(6);
+//
+//                                        String decryptedMessageString = new String(captionBytes, "UTF-8");
+                                    System.out.println("Decrypted message: " + stringM);
+//                                    } else {
+//                                        System.out.println("DECRYPTION ERROR!");
+//                                    }
                                 }
                             }
                             else{
@@ -198,11 +194,9 @@ public class Bob {
                             String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
                             dataOutputStream.writeUTF(Base64EncryptedMessage);
                         }
-
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
-
                     if (message.equalsIgnoreCase("exit")) {
                         break;
                     }
@@ -216,25 +210,21 @@ public class Bob {
     }
 
     public static byte[] decompressData(byte[] compressedData) {
-        try {
-            ByteArrayOutputStream decompressedStream = new ByteArrayOutputStream();
-            Inflater inflater = new Inflater();
-            inflater.setInput(compressedData);
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(compressedData);
+             GZIPInputStream gzipInputStream = new GZIPInputStream(bais);
+             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 
-            byte[] buffer = new byte[1024]; // Use a suitable buffer size
-            while (!inflater.finished()) {
-                int decompressedSize = inflater.inflate(buffer);
-                decompressedStream.write(buffer, 0, decompressedSize);
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = gzipInputStream.read(buffer)) != -1) {
+                baos.write(buffer, 0, bytesRead);
             }
 
-            inflater.end();
-            decompressedStream.close();
-
-            return decompressedStream.toByteArray();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+            return baos.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
+
 }
 

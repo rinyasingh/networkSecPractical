@@ -1,5 +1,7 @@
 import keys.KeyUtils;
 
+
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +17,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.Deflater;
+import java.util.zip.GZIPOutputStream;
 
 import org.bouncycastle.crypto.engines.RSAEngine;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
@@ -23,6 +26,7 @@ import org.bouncycastle.crypto.util.PublicKeyFactory;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import javax.imageio.ImageIO;
 
 public class Alice {
 
@@ -46,13 +50,13 @@ public class Alice {
             bobPub = KeyUtils.readPublicKey("bob");
 
             boolean isFirstConnected = dataInputStream.readBoolean();
-            System.out.println("First to connect: "+ isFirstConnected);
+            System.out.println("First to connect: " + isFirstConnected);
 
             if (isFirstConnected) {
                 System.out.println("CREATING SECRET KEY");
 
                 // Initialize the RSA engine
-                RSAKeyParameters rsaPublicKey = (RSAKeyParameters)PublicKeyFactory.createKey(bobPub.getEncoded());
+                RSAKeyParameters rsaPublicKey = (RSAKeyParameters) PublicKeyFactory.createKey(bobPub.getEncoded());
                 RSAEngine rsaEngine = new RSAEngine();
                 rsaEngine.init(true, rsaPublicKey);
 
@@ -60,7 +64,7 @@ public class Alice {
                 SecureRandom secureRandom = new SecureRandom();
                 byte[] sessionKey = new byte[16];
                 secureRandom.nextBytes(sessionKey);
-                System.out.println("sessionkey: "+ Arrays.toString(sessionKey));
+                System.out.println("sessionkey: " + Arrays.toString(sessionKey));
 
                 // Encrypt the session key with Bob's public key using RSA with PKCS1Padding
                 byte[] encryptedSessionKey = rsaEngine.processBlock(sessionKey, 0, sessionKey.length);
@@ -72,8 +76,7 @@ public class Alice {
                 dataOutputStream.writeUTF(base64SessionKey);
 
                 sessionKeyRef.set(sessionKey);
-            }
-            else if (!isFirstConnected){
+            } else if (!isFirstConnected) {
                 System.out.println("RECEIVING SECRET KEY");
                 // Read the base64-encoded session key as a string
                 String base64EncryptedSessionKey = dataInputStream.readUTF();
@@ -88,7 +91,7 @@ public class Alice {
 
                 // Decrypt the encrypted session key
                 byte[] sessionKey = rsaEngine.processBlock(encryptedSessionKey, 0, encryptedSessionKey.length);
-                System.out.println("DECRYPTED key "+ Arrays.toString(sessionKey));
+                System.out.println("DECRYPTED key " + Arrays.toString(sessionKey));
 
                 sessionKeyRef.set(sessionKey);
             }
@@ -134,12 +137,10 @@ public class Alice {
                                     String decryptedMessageString = new String(receivedM, "UTF-8");
                                     System.out.println("Decrypted message: " + decryptedMessageString);
                                 }
-                            }
-                            else{
+                            } else {
                                 System.out.println("NO SESSION KEY");
                             }
-                        }
-                        catch (Exception e) {
+                        } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
 
@@ -160,7 +161,7 @@ public class Alice {
                 System.out.println("File path is: " + filePath); // Output user input
 
                 System.out.println("SENDING PLAIN MESSAGE:");
-                System.out.println(caption +" with image "+ filePath);
+                System.out.println(caption + " with image " + filePath);
 
                 //Checks so it doesn't send empty messages
                 if (!caption.isEmpty() && !filePath.isEmpty()) {
@@ -172,52 +173,62 @@ public class Alice {
                             File imageFile = new File(filePath);
                             FileInputStream fis = new FileInputStream(imageFile); // input stream
 
+                            BufferedImage img = ImageIO.read(imageFile);
+                            BufferedImage image = org.imgscalr.Scalr.resize(img, 500);
                             // Read and encode the image as Base64
                             byte[] buffer = new byte[1024];
                             int bytesRead; //tracks the number of bytes read in each iteration.
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            ImageIO.write(image, "jpg", baos);
 
                             //This loop reads the image data from an input stream,(fis),and stores it in a buffer.
                             //It reads the image data in chunks of buffer.length bytes at a time until it reaches the
                             //end of the input stream.
-                            while ((bytesRead = fis.read(buffer)) != -1) {
-                                baos.write(buffer, 0, bytesRead);
-                            }
+//                            while ((bytesRead = fis.read(buffer)) != -1) {
+//                                baos.write(buffer, 0, bytesRead);
+//                            }
 
                             byte[] imageBytes = baos.toByteArray();
-                            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
-                            byte[] byteEncodedImage = base64Image.getBytes(StandardCharsets.UTF_8);
-                            byte[] byteCaption = caption.getBytes(StandardCharsets.UTF_8);
 
-                            byte[] delimiter = new byte[] { 0x00 }; // Null byte as delimiter
+                            String base64Image = Base64.getEncoder().encodeToString((imageBytes));
+                            String stringMessage = base64Image+" DELIMITER "+caption;
 
-                            byte[] messageBytes = new byte[byteEncodedImage.length + 1 + byteCaption.length];
-                            System.arraycopy(byteEncodedImage, 0, messageBytes, 0, byteEncodedImage.length);
-                            System.arraycopy(delimiter, 0, messageBytes, byteEncodedImage.length, 1);
-                            System.arraycopy(byteCaption, 0, messageBytes, byteEncodedImage.length + 1, byteCaption.length);
+//                            byte[] byteEncodedImage = base64Image.getBytes(StandardCharsets.UTF_8);
+//                            byte[] byteCaption = caption.getBytes(StandardCharsets.UTF_8);
 
+//                            byte[] delimiter = new byte[]{0x00}; // Null byte as delimiter
+
+//                            byte[] unCompressedMessageBytes = new byte[byteEncodedImage.length + 1 + byteCaption.length];
+//                            System.arraycopy(byteEncodedImage, 0, unCompressedMessageBytes, 0, byteEncodedImage.length);
+//                            System.arraycopy(delimiter, 0, unCompressedMessageBytes, byteEncodedImage.length, 1);
+//                            System.arraycopy(byteCaption, 0, unCompressedMessageBytes, byteEncodedImage.length + 1, byteCaption.length);
+//
 //                            byte[] messageBytes = compressData(unCompressedMessageBytes);
-                            System.out.println("compressed");
-                            MessageDigest md = MessageDigest.getInstance("SHA-256");
+//                            System.out.println(messageBytes.length);
+                            MessageDigest md = MessageDigest.getInstance("SHA-1");
 //                            byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
-                            byte[] digest = md.digest(messageBytes);
+                            byte[] digest = md.digest(stringMessage.getBytes(StandardCharsets.UTF_8));
+//                            byte[] privEncryptedDigest = digest;
 
                             //2. ENCRYPT DIGEST WITH PRIVATE KEY
                             Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                             rsaCipher.init(Cipher.ENCRYPT_MODE, alicePriv);
                             byte[] privEncryptedDigest = rsaCipher.doFinal(digest);
-                            byte[] data = new byte[messageBytes.length + privEncryptedDigest.length];
 
-                            System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
-                            System.arraycopy(privEncryptedDigest, 0, data, messageBytes.length, privEncryptedDigest.length);
+//                            String mmMessage = stringMessage+"\n"+privEncryptedDigest.toString();
                             System.out.println("shout");
                             Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
                             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
-                            byte[] encryptedMessage = cipher.doFinal(data);
+                            byte[] encryptedMessage = cipher.doFinal(stringMessage.getBytes(StandardCharsets.UTF_8));
                             System.out.println(encryptedMessage.toString());
 
-                            // Encode the entire encryptedMessageBytes
-                            String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
+                            byte[] data = new byte[encryptedMessage.length + privEncryptedDigest.length];
+                            System.arraycopy(encryptedMessage, 0, data, 0, encryptedMessage.length);
+                            System.arraycopy(privEncryptedDigest, 0, data, encryptedMessage.length, privEncryptedDigest.length);
+                            System.out.println(stringMessage);
+//                          Encode the entire encryptedMessageBytes
+                            String Base64EncryptedMessage = Base64.getEncoder().encodeToString(data);
+                            System.out.println(data.toString());
                             dataOutputStream.writeUTF(Base64EncryptedMessage);
                             System.out.println("out");
                         }
@@ -239,26 +250,16 @@ public class Alice {
         }
     }
 
-//    public static byte[] compressData(byte[] data) {
-//        try {
-//            System.out.println("compression");
-//            ByteArrayOutputStream compressedStream = new ByteArrayOutputStream();
-//            Deflater deflater = new Deflater();
-//            deflater.setInput(data);
-//
-//            byte[] buffer = new byte[1024]; // Use a suitable buffer size
-//            while (!deflater.finished()) {
-//                int compressedSize = deflater.deflate(buffer);
-//                compressedStream.write(buffer, 0, compressedSize);
-//            }
-//
-//            deflater.end();
-//            compressedStream.close();
-//
-//            return compressedStream.toByteArray();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            return null;
-//        }
-//    }
+    public static byte[] compressData(byte[] data) {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             GZIPOutputStream gzipOutputStream = new GZIPOutputStream(baos)) {
+
+            gzipOutputStream.write(data);
+            gzipOutputStream.close();
+
+            return baos.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
