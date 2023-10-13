@@ -1,12 +1,4 @@
-import keys.KeyUtils;
-import org.bouncycastle.crypto.BufferedBlockCipher;
-import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.engines.RSAEngine;
-import org.bouncycastle.crypto.modes.CBCBlockCipher;
-import org.bouncycastle.crypto.params.KeyParameter;
-import org.bouncycastle.crypto.params.ParametersWithIV;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.util.PrivateKeyFactory;
 
@@ -14,32 +6,56 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.net.*;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Scanner;
 
 public class Bob {
+    private static final String bobKeyStorePath = "secureapp/src/main/java/config/KeyStoreBob";
+    private static final String bobKeyStorePassword = "123456";
+    private static final String bobAlias = "bob-alias";
+
+    private static final String caCertPath = "secureapp/src/main/java/config/KeyStoreCA";
+    private static final String caPassword = "123456";
+    private static final String caAlias = "ca";
     public static void main(String[] args) {
-        PublicKey bobPub;
-        PrivateKey bobPriv;
+        PublicKey bobPublicKey = null;
+        PrivateKey bobPrivateKey = null;
         PublicKey alicePub = null;
+        PublicKey caPublicKey = null;
+        X509Certificate bobCert = null;
 
 
         Scanner scanner = new Scanner(System.in);
         int port = 5001;
+
+        try{
+            FileInputStream fileInp = new FileInputStream(bobKeyStorePath);
+            KeyStore bobKeyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            bobKeyStore.load(fileInp, bobKeyStorePassword.toCharArray());
+            bobCert =  (X509Certificate) bobKeyStore.getCertificate(bobAlias);
+            bobPublicKey = bobCert.getPublicKey();
+            bobPrivateKey = (PrivateKey) bobKeyStore.getKey(bobAlias,bobKeyStorePassword.toCharArray());
+            // System.out.println(bobCert.toString());
+            FileInputStream caFileInput = new FileInputStream(caCertPath);
+            KeyStore caKeyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            caKeyStore.load(caFileInput, caPassword.toCharArray());
+            caPublicKey = ((X509Certificate) caKeyStore.getCertificate(caAlias)).getPublicKey();
+            // System.out.println("CA" + caPublicKey.toString());
+            System.out.println("Bob's certificate, public key and CA public key loaded");
+        }
+        catch (Exception e){
+            System.out.println(e);
+        }
+
 
         try (Socket socket = new Socket("localhost", port)) {
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
             dataOutputStream.writeUTF("bob");
 
             DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
-
-//            bobPub = KeyUtils.readPublicKey("bob");
-            bobPriv = KeyUtils.readPrivateKey("bob");
-            alicePub = KeyUtils.readPublicKey("alice");
 
 //          // Read the base64-encoded session key as a string
             String base64EncryptedSessionKey = dataInputStream.readUTF();
@@ -48,13 +64,13 @@ public class Bob {
             byte[] encryptedSessionKey = Base64.getDecoder().decode(base64EncryptedSessionKey);
 
             // Initialize the RSA engine with Bob's private key
-            RSAKeyParameters rsaPrivateKey = (RSAKeyParameters) PrivateKeyFactory.createKey(bobPriv.getEncoded());
+            RSAKeyParameters rsaPrivateKey = (RSAKeyParameters) PrivateKeyFactory.createKey(bobPrivateKey.getEncoded());
             RSAEngine rsaEngine = new RSAEngine();
             rsaEngine.init(false, rsaPrivateKey);
 
             // Decrypt the encrypted session key
             byte[] decryptedSessionKey = rsaEngine.processBlock(encryptedSessionKey, 0, encryptedSessionKey.length);
-            System.out.println("DECRYPTED key "+ Arrays.toString(decryptedSessionKey));
+            // System.out.println("DECRYPTED key "+ Arrays.toString(decryptedSessionKey));
 
             //RECEIVE MESSAGES FROM ALICE
             PublicKey finalAlicePub = alicePub;
@@ -136,7 +152,7 @@ public class Bob {
                 }
             }
             socket.close();
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+        } catch (IOException e) {
             e.printStackTrace();
             System.out.println(e);
             System.out.println(e.getMessage());

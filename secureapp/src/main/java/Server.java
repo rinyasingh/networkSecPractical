@@ -1,8 +1,5 @@
 import java.io.*;
 import java.net.*;
-import java.util.Arrays;
-
-import static java.lang.System.exit;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 
@@ -57,24 +54,32 @@ public class Server {
                     bobInput =  tempInputStream;
                     System.out.println("Bob connected");
                 }
+                boolean certsVerified = false;
 
-                // Create separate threads for Alice and Bob to handle bidirectional communication
-                // Need to declare new sockets here because lambda expression needs
-                // variables that are final or effectively final
-                Socket finalAliceSocket = aliceSocket;
-                Socket finalBobSocket = bobSocket;
-                DataInputStream finalAliceInput = aliceInput;
-                DataInputStream finalBobInput = bobInput;
+                DataOutputStream bobOut = new DataOutputStream(bobSocket.getOutputStream());
+                DataOutputStream aliceOut = new DataOutputStream(aliceSocket.getOutputStream());
+                // bobOut.writeUTF("SEND");
+                // aliceOut.writeUTF("SEND");
+                System.out.println("HERE");
+                if (certsVerified == true) {
+                    // Create separate threads for Alice and Bob to handle bidirectional communication
+                    // Need to declare new sockets here because lambda expression needs
+                    // variables that are final or effectively final
+                    Socket finalAliceSocket = aliceSocket;
+                    Socket finalBobSocket = bobSocket;
+                    DataInputStream finalAliceInput = aliceInput;
+                    DataInputStream finalBobInput = bobInput;
 
-                Thread aliceThread = new Thread(() -> {
-                    forwardMessages(finalAliceSocket, finalBobSocket, finalAliceInput);
-                });
-                Thread bobThread = new Thread(() -> {
-                    forwardMessages(finalBobSocket, finalAliceSocket, finalBobInput);
-                });
+                    Thread aliceThread = new Thread(() -> {
+                        forwardMessages(finalAliceSocket, finalBobSocket, finalAliceInput);
+                    });
+                    Thread bobThread = new Thread(() -> {
+                        forwardMessages(finalBobSocket, finalAliceSocket, finalBobInput);
+                    });
 
-                aliceThread.start();
-                bobThread.start();
+                    aliceThread.start();
+                    bobThread.start();
+                }
             }
 
         } catch (IOException | KeyStoreException e) {
