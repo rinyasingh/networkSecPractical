@@ -3,6 +3,8 @@ import java.net.*;
 
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+
+import org.bouncycastle.asn1.dvcs.Data;
 import java.sql.SQLOutput;
 
 public class Server {
@@ -43,6 +45,15 @@ public class Server {
                         System.out.println(e.getMessage());
                     }
 
+                    isFirstToConnect = true;
+                    try {
+                        System.out.println("SENDING TRUE TO ALICE");
+                        DataOutputStream aliceOutput = new DataOutputStream(aliceSocket.getOutputStream());
+                        aliceOutput.writeBoolean(isFirstToConnect);
+                    } catch (IOException e) {
+                        System.out.println(e.getMessage());
+                    }
+
                 }
                 else if(userA.equals("bob"))
                 {
@@ -52,6 +63,14 @@ public class Server {
                     isFirstToConnect = true;
                     try {
                         System.out.println("SENDING "+ isFirstToConnect+ " TO BOB");
+                        DataOutputStream bobOutput = new DataOutputStream(bobSocket.getOutputStream());
+                        bobOutput.writeBoolean(isFirstToConnect);
+                    } catch (IOException e) {
+                        System.out.println(e.getMessage());
+                    }
+                    isFirstToConnect = true;
+                    try {
+                        System.out.println("SENDING TRUE TO BOB");
                         DataOutputStream bobOutput = new DataOutputStream(bobSocket.getOutputStream());
                         bobOutput.writeBoolean(isFirstToConnect);
                     } catch (IOException e) {
@@ -79,6 +98,16 @@ public class Server {
                         System.out.println(e.getMessage());
                     }
 
+
+                    isFirstToConnect = false;
+                    try {
+                        System.out.println("SENDING FALSE TO ALICE");
+                        DataOutputStream aliceOutput = new DataOutputStream(aliceSocket.getOutputStream());
+                        aliceOutput.writeBoolean(isFirstToConnect);
+                    } catch (IOException e) {
+                        System.out.println(e.getMessage());
+                    }
+
                 }
                 else if(userB.equals("bob"))
                 {
@@ -96,8 +125,19 @@ public class Server {
                     }
 
 
-                }
 
+                    isFirstToConnect = false;
+                    try {
+                        System.out.println("SENDING FALSE TO BOB");
+                        DataOutputStream bobOutput = new DataOutputStream(bobSocket.getOutputStream());
+                        bobOutput.writeBoolean(isFirstToConnect);
+
+                    } catch (IOException e) {
+                        System.out.println(e.getMessage());
+                    }
+
+
+                }
                 // Create separate threads for Alice and Bob to handle bidirectional communication
                 // Need to declare new sockets here because lambda expression needs
                 // variables that are final or effectively final
@@ -115,9 +155,11 @@ public class Server {
 
                 aliceThread.start();
                 bobThread.start();
+                
             }
 
         } catch (IOException | KeyStoreException e) {
+            System.out.println(e.getMessage());
             System.out.println(e.getMessage());
         }
     }
@@ -130,15 +172,15 @@ public class Server {
                 // Receive a message from the source socket
                 String message = sourceIn.readUTF();
                 System.out.println("RECEIVING MESSAGE FROM SOURCE SOCKET");
-
                  // Forward the message to the destination socket
                 destinationOut.writeUTF(message);
                 System.out.println("SENDING MESSAGE TO DESTINATION SOCKET");
-
+                System.out.println(sourceSocket.toString());
             }
 
 
         } catch (IOException e) {
+            System.out.println(e.getMessage());
             System.out.println(e.getMessage());
         }
     }
