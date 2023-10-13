@@ -141,7 +141,7 @@ public class Bob {
                                     System.out.println("Decrypted message: " + lines[1]);
                                     saveDecodedDataToDesktop(lines[0], lines[1]);
                                     System.out.println("Image saved.");
-//
+                                    System.out.println("Please enter the file path: ");
                                 }
                             }
                             else{
