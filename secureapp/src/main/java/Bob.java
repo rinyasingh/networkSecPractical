@@ -10,6 +10,8 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -104,9 +106,12 @@ public class Bob {
                         try {
                             byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
 
+                            System.out.println("DECRYPTING MESSAGE");
+                            System.out.println("DECRYPTING DIGEST/HASH WITH BOB'S PUBLIC KEY");
+                            System.out.println("CHECKING IF DIGEST/HASH IS VALID");
+
                             if (sessionKey != null) {
                                 //DECRYPTING THE MESSAGE
-                                System.out.println("DECRYPTING MESSAGE");
                                 Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
                                 cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
                                 byte[] decryptedMessage = cipher.doFinal(encryptedMessage);
@@ -118,7 +123,6 @@ public class Bob {
                                 System.arraycopy(decryptedMessage, messageLength, receivedDigest, 0, digestLength);
 
                                 // Decrypt digest with the sender's public key
-                                System.out.println("DECRYPTING DIGEST/HASH WITH BOB'S PUBLIC KEY");
                                 Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                                 decryptCipher.init(Cipher.DECRYPT_MODE, finalAlicePub);
                                 byte[] decryptedDigest = decryptCipher.doFinal(receivedDigest);
@@ -128,11 +132,30 @@ public class Bob {
 
                                 boolean isDigestValid = MessageDigest.isEqual(receivedMessageDigest, decryptedDigest);
 
-                                System.out.println("CHECKING IF DIGEST/HASH IS VALID");
                                 if (isDigestValid) {
-                                    // Process the decrypted message as needed
+                                    // Check if the received message is an image message
                                     String decryptedMessageString = new String(receivedM, "UTF-8");
-                                    System.out.println("Alice: " + decryptedMessageString);
+                                    if (decryptedMessageString.startsWith("image:")) {
+                                        // This is an image message
+                                        StringBuilder imageDataBuilder = new StringBuilder();
+                                        String[] parts = decryptedMessageString.split(",");
+                                        if (parts.length == 3) {
+                                            String base64ImageData = parts[0].substring("image:".length());
+                                            String caption = parts[1];
+                                            String extension =parts[2];
+
+                                            // Decode and save the image
+                                            byte[] imageData = Base64.getDecoder().decode(base64ImageData);
+                                            String imagePath = "image."+ extension; // Specify the path to save the image
+                                            Files.write(Paths.get(imagePath), imageData);
+
+                                            // Display the caption
+                                            System.out.println("Alice: " + caption);
+                                        }
+                                    } else {
+                                        // This is a regular text message
+                                        System.out.println("Alice: " + decryptedMessageString);
+                                    }
                                 }
                             }
                             else{
@@ -200,6 +223,9 @@ public class Bob {
             System.out.println(e);
             System.out.println(e.getMessage());
         }
+    }
+    public static String decryptMessage(byte[] encryptedMessage, byte[] sessionKey, PrivateKey privateKey) {
+
     }
 }
 

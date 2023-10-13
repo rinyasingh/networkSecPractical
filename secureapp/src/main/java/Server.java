@@ -125,15 +125,16 @@ public class Server {
     private static void forwardMessages(Socket sourceSocket, Socket destinationSocket, DataInputStream sourceIn ) {
         try {
             DataOutputStream destinationOut = new DataOutputStream(destinationSocket.getOutputStream());
+            System.out.println("RECEIVING MESSAGE FROM SOURCE SOCKET");
+            System.out.println("SENDING MESSAGE TO DESTINATION SOCKET");
 
             while (true) {
                 // Receive a message from the source socket
                 String message = sourceIn.readUTF();
-                System.out.println("RECEIVING MESSAGE FROM SOURCE SOCKET");
 
                  // Forward the message to the destination socket
                 destinationOut.writeUTF(message);
-                System.out.println("SENDING MESSAGE TO DESTINATION SOCKET");
+
 
             }
 

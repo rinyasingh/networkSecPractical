@@ -1,10 +1,9 @@
 import keys.KeyUtils;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -16,14 +15,19 @@ import java.security.*;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.GZIPOutputStream;
 
 import org.bouncycastle.crypto.engines.RSAEngine;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
+import org.apache.commons.io.FilenameUtils;
 
 public class Alice {
 
@@ -166,35 +170,54 @@ public class Alice {
                 //Checks so it doesn't send empty messages
                 if (!message.isEmpty()) {
                     try {
-                        byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
-                        if (sessionKey != null) {
-                            MessageDigest md = MessageDigest.getInstance("SHA-256");
-                            byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
-                            byte[] digest = md.digest(messageBytes);
+                        byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session keyif (sessionKey != null) {
+                        if (message.startsWith("image:")) {
+                            // This is an image message
+                            String[] parts = message.split(",", 2); // Split the message into image path and caption
+                            String imagePath = parts[0].substring("image:".length()); // Extract the image path
+                            String caption = parts[1]; // Extract the caption
 
-                            // ENCRYPT DIGEST WITH PRIVATE KEY
+                            // Load the image from the specified path
+                            File imageFile = new File(imagePath);
+                            if (imageFile.exists() && imageFile.isFile()) {
+                                byte[] imageData = Files.readAllBytes(imageFile.toPath());
+
+                                // Compress the image data
+                                ByteArrayOutputStream compressedImageData = new ByteArrayOutputStream();
+                                try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(compressedImageData)) {
+                                    gzipOutputStream.write(imageData);
+                                }
+
+                                // Encode the compressed image data as Base64 and split it into chunks
+                                byte[] compressedDataBytes = compressedImageData.toByteArray();
+                                String compressedDataString = Base64.getEncoder().encodeToString(compressedDataBytes);
+                                int chunkSize = 1024; // Define your preferred chunk size
+
+                                for (int i = 0; i < compressedDataString.length(); i += chunkSize) {
+                                    String chunk = compressedDataString.substring(i, Math.min(i + chunkSize, compressedDataString.length()));
+                                    String messageChunk = "image:" + chunk;
+
+                                    String encryptedMessage = encryptMessage(messageChunk, sessionKey, alicePriv);
+                                    dataOutputStream.writeUTF(encryptedMessage);
+                                }
+                                System.out.println("SENDING IMAGE CHUNKS");
+                               // Send the caption and extension at the end
+                                String captionAndExtension = caption + "," + FilenameUtils.getExtension(imagePath);
+                                dataOutputStream.writeUTF(captionAndExtension);
+                                System.out.println("SENDING CAPTION AND EXTENSION");
+                            } else {
+                                System.out.println("ERROR: Image file not found: " + imagePath);
+                            }
+
+                            } else {
+                            String encryptedMessage = encryptMessage(message, sessionKey, alicePriv);
+                            dataOutputStream.writeUTF(encryptedMessage);
                             System.out.println("ENCRYPTING DIGEST/HASH WITH ALICE'S PRIVATE KEY");
-                            Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-                            rsaCipher.init(Cipher.ENCRYPT_MODE, alicePriv);
-                            byte[] privEncryptedDigest = rsaCipher.doFinal(digest);
-                            byte[] data = new byte[messageBytes.length + privEncryptedDigest.length];
-
-                            System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
-                            System.arraycopy(privEncryptedDigest, 0, data, messageBytes.length, privEncryptedDigest.length);
-
-                            // ENCRYPTING WHOLE MESSAGE WITH HASH/DIGEST
                             System.out.println("ENCRYPTING MESSAGE");
-                            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
-                            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
-                            byte[] encryptedMessage = cipher.doFinal(data);
-
-                            // Encode the entire encryptedMessageBytes
                             System.out.println("ENCODING MESSAGE");
-                            String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
-                            dataOutputStream.writeUTF(Base64EncryptedMessage);
                             System.out.println("SENDING MESSAGE");
-                        }
-                    } catch (Exception e) {
+                            }
+                        } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
 
@@ -209,4 +232,30 @@ public class Alice {
             System.out.println(e.getMessage());
         }
     }
+    public static String encryptMessage(String message, byte[] sessionKey, PrivateKey privateKey) throws Exception {
+        //HASH
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
+        byte[] digest = md.digest(messageBytes);
+
+        // ENCRYPT DIGEST WITH PRIVATE KEY
+        Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        rsaCipher.init(Cipher.ENCRYPT_MODE, privateKey);
+        byte[] privEncryptedDigest = rsaCipher.doFinal(digest);
+        byte[] data = new byte[messageBytes.length + privEncryptedDigest.length];
+
+        System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
+        System.arraycopy(privEncryptedDigest, 0, data, messageBytes.length, privEncryptedDigest.length);
+
+        // ENCRYPTING WHOLE MESSAGE WITH HASH/DIGEST
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
+        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
+        byte[] encryptedMessage = cipher.doFinal(data);
+
+        // Encode the entire encryptedMessageBytes
+        String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
+
+        return Base64EncryptedMessage;
+    }
+
 }
