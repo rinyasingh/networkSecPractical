@@ -31,7 +31,7 @@ import javax.imageio.ImageIO;
 public class Alice {
 
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        PublicKey alicePub = null;
+//        PublicKey alicePub = null;
         PrivateKey alicePriv = null;
         PublicKey bobPub = null;
 
@@ -45,7 +45,7 @@ public class Alice {
             dataOutputStream.writeUTF("alice");
 
             //ALL KEYS
-            alicePub = KeyUtils.readPublicKey("alice");
+//            alicePub = KeyUtils.readPublicKey("alice");
             alicePriv = KeyUtils.readPrivateKey("alice");
             bobPub = KeyUtils.readPublicKey("bob");
 
@@ -104,6 +104,7 @@ public class Alice {
                         String base64EncryptedMessage = dataInputStream.readUTF();
                         int digestLength = 256; // For SHA-256
                         // Decode the Base64 string back into a byte array
+                        System.out.println("Decode message.");
                         byte[] encryptedMessage = Base64.getDecoder().decode(base64EncryptedMessage);
 
                         try {
@@ -116,28 +117,32 @@ public class Alice {
                                 System.arraycopy(encryptedMessage, 0, receivedM, 0, messageLength);
                                 System.arraycopy(encryptedMessage, messageLength, receivedDigest, 0, digestLength);
 
+                                System.out.println("Decrypting message.");
                                 Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
                                 cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
                                 byte[] decryptedMessage = cipher.doFinal(receivedM);
 
+                                System.out.println("Decrypting digest.");
                                 // Decrypt digest with the sender's public key
                                 Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                                 decryptCipher.init(Cipher.DECRYPT_MODE, finalBobPub);
                                 byte[] decryptedDigest = decryptCipher.doFinal(receivedDigest);
 
+                                System.out.println("Creating digest.");
                                 MessageDigest md = MessageDigest.getInstance("SHA-1");
                                 byte[] receivedMessageDigest = md.digest(decryptedMessage);
 
                                 boolean isDigestValid = MessageDigest.isEqual(receivedMessageDigest, decryptedDigest);
 
                                 if (isDigestValid) {
+                                    System.out.println("Digest valid.");
                                     String stringM =new String(decryptedMessage, StandardCharsets.UTF_8);
 
                                     String[] lines = stringM.split(" DELIMITER ");
 
                                     System.out.println("Decrypted message: " + lines[1]);
-                                    saveDecodedDataToDesktop(lines[0], "test");
-//
+                                    saveDecodedDataToDesktop(lines[0], lines[1]);
+                                    System.out.println("Image saved.");
                                 }
                             }
                             else{
@@ -170,6 +175,7 @@ public class Alice {
                     try {
                         byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
                         if (sessionKey != null) {
+                            System.out.println("Reading and encoding image and caption.");
                             File imageFile = new File(filePath);
                             FileInputStream fis = new FileInputStream(imageFile); // input stream
 
@@ -185,10 +191,12 @@ public class Alice {
                             String base64Image = Base64.getEncoder().encodeToString((imageBytes));
                             String stringMessage = base64Image+" DELIMITER "+caption;
 
+                            System.out.println("Creating digest");
                             MessageDigest md = MessageDigest.getInstance("SHA-1");
                             byte[] digest = md.digest(stringMessage.getBytes(StandardCharsets.UTF_8));
 
                             //2. ENCRYPT DIGEST WITH PRIVATE KEY
+                            System.out.println("Encrypting digest");
                             Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                             rsaCipher.init(Cipher.ENCRYPT_MODE, alicePriv);
                             byte[] privEncryptedDigest = rsaCipher.doFinal(digest);
@@ -197,10 +205,12 @@ public class Alice {
                             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
                             byte[] encryptedMessage = cipher.doFinal(stringMessage.getBytes(StandardCharsets.UTF_8));
 
+                            System.out.println("Bundling digest and message.");
                             byte[] data = new byte[encryptedMessage.length + privEncryptedDigest.length];
                             System.arraycopy(encryptedMessage, 0, data, 0, encryptedMessage.length);
                             System.arraycopy(privEncryptedDigest, 0, data, encryptedMessage.length, privEncryptedDigest.length);
 
+                            System.out.println("Sending message");
                             String Base64EncryptedMessage = Base64.getEncoder().encodeToString(data);
                             dataOutputStream.writeUTF(Base64EncryptedMessage);
                         }
@@ -229,9 +239,10 @@ public class Alice {
             // Create a BufferedImage from the decoded byte array
             ByteArrayInputStream bais = new ByteArrayInputStream(decodedImageBytes);
             BufferedImage image = ImageIO.read(bais);
+            String outputFile = fileName +".jpg";
 
             // Save the decrypted image to the specified output path
-            ImageIO.write(image, "jpg", new File("test.jpg"));
+            ImageIO.write(image, "jpg", new File(outputFile));
         } catch (IOException e) {
             e.printStackTrace();
         }
