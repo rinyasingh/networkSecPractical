@@ -95,8 +95,6 @@ public class Alice {
 
                 sessionKeyRef.set(sessionKey);
             }
-//            System.out.println(isFirstConnected);
-
 
             //RECEIVE MESSAGES FROM BOB
             PublicKey finalBobPub = bobPub;
@@ -112,38 +110,42 @@ public class Alice {
                             byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
 
                             if (sessionKey != null) {
-                                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
-                                cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
-                                byte[] decryptedMessage = cipher.doFinal(encryptedMessage);
-
-                                int messageLength = decryptedMessage.length - digestLength;
+                                int messageLength = encryptedMessage.length - digestLength;
                                 byte[] receivedM = new byte[messageLength];
                                 byte[] receivedDigest = new byte[digestLength];
-                                System.arraycopy(decryptedMessage, 0, receivedM, 0, messageLength);
-                                System.arraycopy(decryptedMessage, messageLength, receivedDigest, 0, digestLength);
+                                System.arraycopy(encryptedMessage, 0, receivedM, 0, messageLength);
+                                System.arraycopy(encryptedMessage, messageLength, receivedDigest, 0, digestLength);
+
+                                Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
+                                cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
+                                byte[] decryptedMessage = cipher.doFinal(receivedM);
 
                                 // Decrypt digest with the sender's public key
                                 Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                                 decryptCipher.init(Cipher.DECRYPT_MODE, finalBobPub);
                                 byte[] decryptedDigest = decryptCipher.doFinal(receivedDigest);
 
-                                MessageDigest md = MessageDigest.getInstance("SHA-256");
-                                byte[] receivedMessageDigest = md.digest(receivedM);
+                                MessageDigest md = MessageDigest.getInstance("SHA-1");
+                                byte[] receivedMessageDigest = md.digest(decryptedMessage);
 
                                 boolean isDigestValid = MessageDigest.isEqual(receivedMessageDigest, decryptedDigest);
 
                                 if (isDigestValid) {
-                                    // Process the decrypted message as needed
-                                    String decryptedMessageString = new String(receivedM, "UTF-8");
-                                    System.out.println("Decrypted message: " + decryptedMessageString);
+                                    String stringM =new String(decryptedMessage, StandardCharsets.UTF_8);
+
+                                    String[] lines = stringM.split(" DELIMITER ");
+
+                                    System.out.println("Decrypted message: " + lines[1]);
+                                    saveDecodedDataToDesktop(lines[0], "test");
+//
                                 }
-                            } else {
+                            }
+                            else{
                                 System.out.println("NO SESSION KEY");
                             }
                         } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
-
                     }
                 } catch (IOException e) {
                     System.out.println(e.getMessage());
@@ -158,26 +160,23 @@ public class Alice {
 
                 System.out.println("Please enter the caption: ");
                 String caption = scanner.nextLine(); // Read user input
-                System.out.println("File path is: " + filePath); // Output user input
+                //System.out.println("File path is: " + filePath); // Output user input
 
-                System.out.println("SENDING PLAIN MESSAGE:");
-                System.out.println(caption + " with image " + filePath);
+                System.out.println("SENDING");
+//                System.out.println(caption + " with image " + filePath);
 
                 //Checks so it doesn't send empty messages
                 if (!caption.isEmpty() && !filePath.isEmpty()) {
                     try {
-                        System.out.println("try");
                         byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
                         if (sessionKey != null) {
-                            System.out.println("try");
                             File imageFile = new File(filePath);
                             FileInputStream fis = new FileInputStream(imageFile); // input stream
 
                             BufferedImage img = ImageIO.read(imageFile);
                             BufferedImage image = org.imgscalr.Scalr.resize(img, 500);
                             // Read and encode the image as Base64
-                            byte[] buffer = new byte[1024];
-                            int bytesRead; //tracks the number of bytes read in each iteration.
+
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
                             ImageIO.write(image, "jpg", baos);
 
@@ -194,21 +193,16 @@ public class Alice {
                             rsaCipher.init(Cipher.ENCRYPT_MODE, alicePriv);
                             byte[] privEncryptedDigest = rsaCipher.doFinal(digest);
 
-                            System.out.println("shout");
                             Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
                             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
                             byte[] encryptedMessage = cipher.doFinal(stringMessage.getBytes(StandardCharsets.UTF_8));
-                            System.out.println(encryptedMessage.toString());
 
                             byte[] data = new byte[encryptedMessage.length + privEncryptedDigest.length];
                             System.arraycopy(encryptedMessage, 0, data, 0, encryptedMessage.length);
                             System.arraycopy(privEncryptedDigest, 0, data, encryptedMessage.length, privEncryptedDigest.length);
-                            System.out.println(stringMessage);
 
                             String Base64EncryptedMessage = Base64.getEncoder().encodeToString(data);
-                            System.out.println(data.toString());
                             dataOutputStream.writeUTF(Base64EncryptedMessage);
-                            System.out.println("out");
                         }
                     } catch (Exception e) {
                         throw new RuntimeException(e);
@@ -227,17 +221,20 @@ public class Alice {
             System.out.println(e.getMessage());
         }
     }
+    public static boolean saveDecodedDataToDesktop(String base64Image, String fileName) {
+        try {
+            // Decode the Base64 image data
+            byte[] decodedImageBytes = Base64.getDecoder().decode(base64Image);
 
-    public static byte[] compressData(byte[] data) {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             GZIPOutputStream gzipOutputStream = new GZIPOutputStream(baos)) {
+            // Create a BufferedImage from the decoded byte array
+            ByteArrayInputStream bais = new ByteArrayInputStream(decodedImageBytes);
+            BufferedImage image = ImageIO.read(bais);
 
-            gzipOutputStream.write(data);
-            gzipOutputStream.close();
-
-            return baos.toByteArray();
+            // Save the decrypted image to the specified output path
+            ImageIO.write(image, "jpg", new File("test.jpg"));
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
+        return false; // Data save operation failed
     }
 }

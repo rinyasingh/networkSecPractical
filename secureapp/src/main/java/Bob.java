@@ -99,28 +99,24 @@ public class Bob {
             Thread aliceListener = new Thread(() -> {
                 try {
                     while (true) {
-                        System.out.println("got");
                         String base64EncryptedMessage = dataInputStream.readUTF();
                         int digestLength = 256; // For SHA-256
                         // Decode the Base64 string back into a byte array
                         byte[] encryptedMessage = Base64.getDecoder().decode(base64EncryptedMessage);
-                        System.out.println("0");
+
                         try {
                             byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
-                            System.out.println("1");
+
                             if (sessionKey != null) {
                                 int messageLength = encryptedMessage.length - digestLength;
                                 byte[] receivedM = new byte[messageLength];
                                 byte[] receivedDigest = new byte[digestLength];
                                 System.arraycopy(encryptedMessage, 0, receivedM, 0, messageLength);
                                 System.arraycopy(encryptedMessage, messageLength, receivedDigest, 0, digestLength);
-                                System.out.println("2");
 
                                 Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as used for encryption
                                 cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
                                 byte[] decryptedMessage = cipher.doFinal(receivedM);
-                                System.out.println(decryptedMessage.toString());
-                                System.out.println(receivedM.toString());
 
                                 // Decrypt digest with the sender's public key
                                 Cipher decryptCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
@@ -129,31 +125,18 @@ public class Bob {
 
                                 MessageDigest md = MessageDigest.getInstance("SHA-1");
                                 byte[] receivedMessageDigest = md.digest(decryptedMessage);
-                                System.out.println("3");
+
                                 boolean isDigestValid = MessageDigest.isEqual(receivedMessageDigest, decryptedDigest);
 
                                 if (isDigestValid) {
-                                    // Process the decrypted message as needed
-                                    System.out.println("4");
-                                    System.out.println("5");
-//                                    if (delimiterPosition != -1)
-                                    //{
-                                        // Split the message into imageBytes and captionBytes
                                     String stringM =new String(decryptedMessage, StandardCharsets.UTF_8);
-                                    System.out.println(6);
-//                                        String decryptedMessageString = new String(captionBytes, "UTF-8");
-                                    System.out.println("Decrypted message: " + stringM);
 
                                     String[] lines = stringM.split(" DELIMITER ");
 
-                                    System.out.println("Decrypted message: " + lines[0]);
                                     System.out.println("Decrypted message: " + lines[1]);
                                     saveDecodedDataToDesktop(lines[0], "test");
-//                                    } else {
-//                                        System.out.println("DECRYPTION ERROR!");
-//                                    }
+//
                                 }
-
                             }
                             else{
                                 System.out.println("NO SESSION KEY");
@@ -171,52 +154,72 @@ public class Bob {
 
             //SEND MESSAGES TO ALICE
             while (true) {
-                String message = scanner.nextLine();
-                System.out.println("SENDING PLAIN MESSAGE:");
-                System.out.println(message);
+                System.out.println("Please enter the file path: ");
+                String filePath = scanner.nextLine();
 
-                // Check so it doesn't send empty messages
-                if (!message.isEmpty()) {
+                System.out.println("Please enter the caption: ");
+                String caption = scanner.nextLine(); // Read user input
+                System.out.println("File path is: " + filePath); // Output user input
+
+                System.out.println("SENDING PLAIN MESSAGE:");
+                System.out.println(caption + " with image " + filePath);
+
+                //Checks so it doesn't send empty messages
+                if (!caption.isEmpty() && !filePath.isEmpty()) {
                     try {
                         byte[] sessionKey = sessionKeyRef.get(); // Retrieve the session key
-
                         if (sessionKey != null) {
-                            MessageDigest md = MessageDigest.getInstance("SHA-256");
-                            byte[] messageBytes = message.getBytes(StandardCharsets.UTF_8);
-                            byte[] digest = md.digest(messageBytes);
+                            File imageFile = new File(filePath);
+                            FileInputStream fis = new FileInputStream(imageFile); // input stream
+
+                            BufferedImage img = ImageIO.read(imageFile);
+                            BufferedImage image = org.imgscalr.Scalr.resize(img, 500);
+                            // Read and encode the image as Base64
+
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            ImageIO.write(image, "jpg", baos);
+
+                            byte[] imageBytes = baos.toByteArray();
+
+                            String base64Image = Base64.getEncoder().encodeToString((imageBytes));
+                            String stringMessage = base64Image+" DELIMITER "+caption;
+
+                            MessageDigest md = MessageDigest.getInstance("SHA-1");
+                            byte[] digest = md.digest(stringMessage.getBytes(StandardCharsets.UTF_8));
 
                             //2. ENCRYPT DIGEST WITH PRIVATE KEY
                             Cipher rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                             rsaCipher.init(Cipher.ENCRYPT_MODE, bobPriv);
                             byte[] privEncryptedDigest = rsaCipher.doFinal(digest);
-                            byte[] data = new byte[messageBytes.length + privEncryptedDigest.length];
-
-                            System.arraycopy(messageBytes, 0, data, 0, messageBytes.length);
-                            System.arraycopy(privEncryptedDigest, 0, data, messageBytes.length, privEncryptedDigest.length);
 
                             Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // Use the same algorithm and mode as on the other end
                             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sessionKey, "AES"));
-                            byte[] encryptedMessage = cipher.doFinal(data);
+                            byte[] encryptedMessage = cipher.doFinal(stringMessage.getBytes(StandardCharsets.UTF_8));
 
-                            // Encode the entire encryptedMessageBytes
-                            String Base64EncryptedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
+                            byte[] data = new byte[encryptedMessage.length + privEncryptedDigest.length];
+                            System.arraycopy(encryptedMessage, 0, data, 0, encryptedMessage.length);
+                            System.arraycopy(privEncryptedDigest, 0, data, encryptedMessage.length, privEncryptedDigest.length);
+
+                            String Base64EncryptedMessage = Base64.getEncoder().encodeToString(data);
                             dataOutputStream.writeUTF(Base64EncryptedMessage);
                         }
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
-                    if (message.equalsIgnoreCase("exit")) {
+
+                    if (caption.equalsIgnoreCase("exit")) {
                         break;
                     }
+                } else {
+                    System.out.println("something is empty");
                 }
-                }
+            }
             socket.close();
-        } catch (Exception e) {
+        }  catch (Exception e) {
             System.out.println(e);
             System.out.println(e.getMessage());
         }
     }
-
     public static boolean saveDecodedDataToDesktop(String base64Image, String fileName) {
         try {
             // Decode the Base64 image data
@@ -231,25 +234,7 @@ public class Bob {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         return false; // Data save operation failed
     }
-    public static byte[] decompressData(byte[] compressedData) {
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(compressedData);
-             GZIPInputStream gzipInputStream = new GZIPInputStream(bais);
-             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = gzipInputStream.read(buffer)) != -1) {
-                baos.write(buffer, 0, bytesRead);
-            }
-
-            return baos.toByteArray();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
 }
 
